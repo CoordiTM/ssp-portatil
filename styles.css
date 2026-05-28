@@ -1,50 +1,202 @@
-/* Tabla compacta */
-.tabla-solicitudes {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.8rem;
+/* Filtros compactos */
+.filtro-fecha {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
 }
 
-.tabla-solicitudes th {
-    background: #1a5276;
-    color: white;
-    padding: 8px 4px;
-    text-align: left;
+.filtro-fecha label {
     font-weight: 600;
-    white-space: nowrap;
+    color: #555;
 }
 
-.tabla-solicitudes td {
-    padding: 6px 4px;
-    border-bottom: 1px solid #e0e0e0;
-    vertical-align: middle;
+.filtro-fecha input {
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 0.9rem;
 }
 
-/* Acciones compactas */
-.acciones {
-    white-space: nowrap;
-    min-width: 80px;
+.filtro-botones {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
 }
 
-.btn-accion {
-    padding: 4px 6px;
-    border: none;
-    border-radius: 4px;
+.btn-filtro {
+    padding: 10px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    background: white;
     cursor: pointer;
-    font-size: 0.75rem;
-    margin-right: 2px;
+    font-weight: 600;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
 }
 
-.motivo-rechazo {
-    display: block;
-    font-size: 0.7rem;
+.btn-filtro:hover {
+    border-color: #2e86ab;
+}
+
+.btn-filtro.active {
+    border-color: #2e86ab;
+    background: #ebf5fb;
+}
+
+/* Lista de cards */
+.lista-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Card de solicitud */
+.solicitud-card-v2 {
+    background: white;
+    border-radius: 12px;
+    padding: 15px;
+    border-left: 4px solid #2e86ab;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.solicitud-card-v2.alerta-amarilla {
+    border-left-color: #ffc107;
+    background: #fffbf0;
+}
+
+.solicitud-card-v2.alerta-roja {
+    border-left-color: #f44336;
+    background: #fff5f5;
+    animation: pulse 2s infinite;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.card-titulo {
+    display: flex;
+    flex-direction: column;
+}
+
+.card-titulo strong {
+    font-size: 1.1rem;
+    color: #1a5276;
+}
+
+.card-titulo .dni {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.estado-badge {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.estado-badge.pendiente { background: #fff3e0; color: #f57c00; }
+.estado-badge.camino { background: #e3f2fd; color: #1976d2; }
+.estado-badge.rechazado { background: #ffebee; color: #d32f2f; }
+.estado-badge.finalizado { background: #e8f5e9; color: #388e3c; }
+
+.card-info {
+    margin-bottom: 10px;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 0.9rem;
+    color: #555;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.info-row .tiempo {
+    font-weight: 600;
+    color: #e74c3c;
+}
+
+.info-row.notas {
+    font-style: italic;
+    color: #666;
+    background: #f8f9fa;
+    padding: 6px 10px;
+    border-radius: 6px;
+}
+
+.card-foto {
+    margin-bottom: 10px;
+}
+
+.card-foto a {
+    color: #2e86ab;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.card-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.btn-action {
+    flex: 1;
+    min-width: 120px;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-action.camino { background: #fff3e0; color: #f57c00; }
+.btn-action.rechazar { background: #ffebee; color: #d32f2f; }
+.btn-action.finalizar { background: #e3f2fd; color: #1976d2; }
+.btn-action.revertir { background: #e8f5e9; color: #388e3c; }
+
+.motivo {
+    width: 100%;
+    font-size: 0.8rem;
     color: #e74c3c;
     font-style: italic;
-    margin-top: 2px;
+    margin-top: 5px;
 }
 
-/* Filtro fecha */
-#fechaFiltro {
-    max-width: 200px;
-    margin-bottom: 15px;
+.completado {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .card-header {
+        flex-direction: column;
+    }
+    
+    .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .btn-action {
+        min-width: 100%;
+    }
 }
