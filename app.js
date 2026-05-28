@@ -275,14 +275,15 @@ if (listaCards) {
                 <button onclick="mostrarRechazo('${id}')" class="btn-action rechazar">❌ NO ATENDER</button>
             `;
         } else if (data.estado === 'en_camino') {
-            estadoBadge = '<span class="estado-badge camino">🚶 EN CAMINO</span>';
-            acciones = `
-                <button onclick="mostrarNotasContingencia('${id}')" class="btn-action notas">📝 NOTAS</button>
-                <button onclick="cambiarEstado('${id}', 'finalizado')" class="btn-action finalizar">✅ FINALIZAR</button>
-            `;
-            if (data.notasContingencia) {
-                acciones += `<p class="notas-contingencia">📝 ${data.notasContingencia}</p>`;
-            }
+    estadoBadge = '<span class="estado-badge camino">🚶 EN CAMINO</span>';
+    acciones = `
+        <button onclick="cambiarEstado('${id}', 'finalizado')" class="btn-action finalizar">✅ FINALIZAR</button>
+        <button onclick="mostrarRechazo('${id}')" class="btn-action rechazar">❌ NO ATENDER</button>
+    `;
+    if (data.notasContingencia) {
+        acciones += `<p class="notas-contingencia">📝 ${data.notasContingencia}</p>`;
+    }
+}
         } else if (data.estado === 'rechazado') {
             estadoBadge = '<span class="estado-badge rechazado">❌ NO ATENDIDO</span>';
             acciones = `
