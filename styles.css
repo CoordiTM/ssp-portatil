@@ -28,19 +28,19 @@ body {
 }
 
 .header-main h1 {
-    font-size: 1.5rem;
+    font-size: 1.4rem;
     margin-bottom: 5px;
 }
 
 .header-main h2 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     font-weight: 400;
     opacity: 0.9;
     margin-bottom: 5px;
 }
 
 .subtitle {
-    font-size: 0.95rem;
+    font-size: 0.9rem;
     opacity: 0.8;
 }
 
@@ -84,13 +84,7 @@ body {
 
 .menu-card h3 {
     font-size: 1.3rem;
-    margin-bottom: 8px;
     color: #1a5276;
-}
-
-.menu-card p {
-    color: #666;
-    font-size: 0.95rem;
 }
 
 /* Cards generales */
@@ -102,10 +96,9 @@ body {
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 
-.card h2 {
+.card h2, .card h3, .card h4 {
     margin-bottom: 15px;
     color: #1a5276;
-    font-size: 1.2rem;
 }
 
 /* Login card */
@@ -223,6 +216,7 @@ body {
 .btn-pendiente { color: #f39c12; }
 .btn-camino { color: #e67e22; }
 .btn-atendiendo { color: #27ae60; }
+.btn-rechazado { color: #e74c3c; }
 .btn-finalizado { color: #3498db; }
 .btn-todos { color: #1a5276; }
 
@@ -269,17 +263,6 @@ body {
     gap: 5px;
 }
 
-.tag {
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 0.75rem;
-    font-weight: 700;
-}
-
-.tag-normal { background: #e3f2fd; color: #1976d2; }
-.tag-urgente { background: #fff3e0; color: #f57c00; }
-.tag-emergencia { background: #ffebee; color: #d32f2f; }
-
 .estado {
     font-weight: 600;
     color: #555;
@@ -316,10 +299,12 @@ body {
     display: flex;
     gap: 10px;
     margin-top: 10px;
+    flex-wrap: wrap;
 }
 
 .solicitud-actions button {
     flex: 1;
+    min-width: 120px;
     padding: 10px;
     border: none;
     border-radius: 6px;
@@ -331,10 +316,18 @@ body {
 .btn-camino { background: #fff3e0; color: #f57c00; }
 .btn-atendiendo { background: #e8f5e9; color: #388e3c; }
 .btn-finalizar { background: #e3f2fd; color: #1976d2; }
+.btn-rechazar { background: #ffebee; color: #d32f2f; }
 
 .completado {
     color: #27ae60;
     font-weight: 600;
+    padding: 10px;
+}
+
+.rechazado-info {
+    color: #e74c3c;
+    font-size: 0.9rem;
+    font-style: italic;
     padding: 10px;
 }
 
@@ -355,10 +348,54 @@ body {
     50% { opacity: 0.7; }
 }
 
+/* Admin - Tecnólogos */
+.tecnologo-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
+
+.btn-eliminar {
+    background: #ffebee;
+    color: #d32f2f;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+/* Reportes */
+.stats-reporte {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.stats-reporte .stat-box {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.reporte-resultado ul {
+    margin-left: 20px;
+    margin-top: 10px;
+}
+
+.reporte-resultado li {
+    margin-bottom: 5px;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
     .header-main h1 {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
     }
     
     .filtro-botones {
@@ -372,5 +409,9 @@ body {
     
     .menu-card {
         padding: 20px;
+    }
+    
+    .solicitud-actions button {
+        min-width: 100%;
     }
 }
