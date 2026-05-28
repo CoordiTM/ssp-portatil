@@ -18,7 +18,7 @@ const firebaseConfig = {
 
 // ☁️ CLOUDINARY CONFIG
 const CLOUDINARY_CLOUD_NAME = "dugihbmyc";
-const CLOUDINARY_UPLOAD_PRESET = "ris_portatil"; // Lo crearemos ahora
+const CLOUDINARY_UPLOAD_PRESET = "ssp-portatil"; // Lo crearemos ahora
 
 // ==================== INICIALIZAR ====================
 const app = initializeApp(firebaseConfig);
