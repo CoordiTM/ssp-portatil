@@ -3,76 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SSP Rx Portátil - Trazabilidad</title>
+    <title>Servicios de Radiodiagnóstico y Ecografía - HNASS | SSP Rx Portátil</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>📋 SSP Rx Portátil</h1>
-            <p>Sistema de Trazabilidad de Solicitudes</p>
+    <div class="container login-page">
+        <header class="header-main">
+            <h1>🏥 Servicios de Radiodiagnóstico y Ecografía</h1>
+            <h2>HNASS</h2>
+            <p class="subtitle">Sistema de Trazabilidad de Solicitudes - Rx Portátil</p>
         </header>
 
-        <!-- Formulario Nueva Solicitud -->
-        <section class="card">
-            <h2>📝 Nueva Solicitud</h2>
-            <form id="formSolicitud">
-                <div class="form-group">
-                    <label>Habitación:</label>
-                    <input type="text" id="habitacion" placeholder="Ej: 205-A" required>
-                </div>
-                <div class="form-group">
-                    <label>Paciente:</label>
-                    <input type="text" id="paciente" placeholder="Nombre del paciente" required>
-                </div>
-                <div class="form-group">
-                    <label>Tipo de Estudio:</label>
-                    <select id="tipoEstudio" required>
-                        <option value="">Seleccionar...</option>
-                        <option value="Torax AP">Tórax AP</option>
-                        <option value="Torax Lateral">Tórax Lateral</option>
-                        <option value="Abdomen">Abdomen</option>
-                        <option value="Extremidad">Extremidad</option>
-                        <option value="Cranneo">Cráneo</option>
-                        <option value="Otro">Otro</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Urgencia:</label>
-                    <select id="urgencia" required>
-                        <option value="normal">Normal</option>
-                        <option value="urgente">Urgente</option>
-                        <option value="emergencia">Emergencia</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Solicitado por:</label>
-                    <input type="text" id="solicitadoPor" placeholder="Enf. / Dr. nombre" required>
-                </div>
-                <div class="form-group">
-                    <label>Foto de la solicitud:</label>
-                    <input type="file" id="fotoSolicitud" accept="image/*" capture="environment" required>
-                    <small>📷 Toma foto del papel de solicitud</small>
-                </div>
-                <button type="submit" class="btn-primary">➕ Registrar Solicitud</button>
-            </form>
-        </section>
+        <div class="menu-cards">
+            <a href="registrar.html" class="menu-card">
+                <div class="icon">📝</div>
+                <h3>Registrar Solicitud</h3>
+                <p>Para personal de salud y usuarios externos</p>
+            </a>
 
-        <!-- Dashboard -->
-        <section class="card">
-            <h2>📊 Solicitudes Activas</h2>
-            <div class="stats" id="stats">
-                <div class="stat-box">Pendientes: <span id="countPendiente">0</span></div>
-                <div class="stat-box">En camino: <span id="countEnCamino">0</span></div>
-                <div class="stat-box">Atendiendo: <span id="countAtendiendo">0</span></div>
-            </div>
-            <div id="listaSolicitudes" class="lista">
-                <p class="empty">Cargando...</p>
-            </div>
-        </section>
+            <a href="login.html?rol=tecnologo" class="menu-card">
+                <div class="icon">🔬</div>
+                <h3>Tecnólogo Médico</h3>
+                <p>Ingresar con DNI y clave</p>
+            </a>
+
+            <a href="login.html?rol=admin" class="menu-card">
+                <div class="icon">⚙️</div>
+                <h3>Administrador</h3>
+                <p>Acceso con credenciales</p>
+            </a>
+        </div>
     </div>
-
-    <!-- Firebase SDK -->
-    <script type="module" src="app.js"></script>
 </body>
 </html>
