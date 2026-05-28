@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Usuario - SSP Rx Portátil HNASS</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .manual-section {
+            margin-bottom: 30px;
+        }
+        .manual-section h2 {
+            color: #1a5276;
+            border-bottom: 2px solid #2e86ab;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        .manual-section h3 {
+            color: #2e86ab;
+            margin-top: 20px;
+        }
+        .paso {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #2e86ab;
+        }
+        .paso-numero {
+            display: inline-block;
+            background: #2e86ab;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: 700;
+            margin-right: 10px;
+        }
+        .tip {
+            background: #fff3e0;
+            border-left: 4px solid #f57c00;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .tip::before {
+            content: "💡 ";
+        }
+        .warning {
+            background: #ffebee;
+            border-left: 4px solid #d32f2f;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+        .warning::before {
+            content: "⚠️ ";
+        }
+        .roles-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .rol-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .rol-card .icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        .rol-card h4 {
+            color: #1a5276;
+            margin-bottom: 8px;
+        }
+        .faq-item {
+            margin-bottom: 15px;
+        }
+        .faq-pregunta {
+            font-weight: 600;
+            color: #1a5276;
+            cursor: pointer;
+            padding: 10px;
+            background: #f0f2f5;
+            border-radius: 6px;
+        }
+        .faq-respuesta {
+            padding: 15px;
+            display: none;
+        }
+        .faq-respuesta.active {
+            display: block;
+        }
+        .btn-descargar {
+            display: inline-block;
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #1a5276 0%, #2e86ab 100%);
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            margin: 20px 0;
+        }
+        .screenshot-placeholder {
+            background: #e0e0e0;
+            padding: 40px;
+            text-align: center;
+            border-radius: 8px;
+            margin: 10px 0;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header-main">
+            <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
+            <h2>Manual de Usuario - SSP Rx Portátil</h2>
+        </header>
+
+        <div class="card" style="text-align: center;">
+            <a href="manual.pdf" class="btn-descargar" download>📥 Descargar PDF</a>
+        </div>
+
+        <!-- SECCIÓN 1: INTRODUCCIÓN -->
+        <section class="manual-section">
+            <h2>📖 1. Introducción</h2>
+            <p>El <strong>Sistema de Trazabilidad de Solicitudes - Rx Portátil (SSP Rx Portátil)</strong> es una herramienta digital que permite:</p>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>Registrar solicitudes de radiografía portátil con foto</li>
+                <li>Consultar el estado de las solicitudes en tiempo real</li>
+                <li>Trazar los tiempos de atención por tecnólogo</li>
+                <li>Generar reportes de productividad</li>
+            </ul>
+            
+            <div class="tip">
+                Este sistema reemplaza la "caja de solicitudes" física por un registro digital con timestamp automático.
+            </div>
+        </section>
+
+        <!-- SECCIÓN 2: ROLES -->
+        <section class="manual-section">
+            <h2>👥 2. Roles del Sistema</h2>
+            <div class="roles-grid">
+                <div class="rol-card">
+                    <div class="icon">📝</div>
+                    <h4>Personal de Salud</h4>
+                    <p>Registra solicitudes de Rx portátil</p>
+                </div>
+                <div class="rol-card">
+                    <div class="icon">🔍</div>
+                    <h4>Paciente/Familiar</h4>
+                    <p>Consulta estado de solicitud</p>
+                </div>
+                <div class="rol-card">
+                    <div class="icon">☢️</div>
+                    <h4>Tecnólogo Médico</h4>
+                    <p>Atiende solicitudes y registra tiempos</p>
+                </div>
+                <div class="rol-card">
+                    <div class="icon">⚙️</div>
+                    <h4>Administrador</h4>
+                    <p>Gestiona usuarios y reportes</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 3: REGISTRAR SOLICITUD -->
+        <section class="manual-section">
+            <h2>📝 3. Cómo Registrar una Solicitud (Personal de Salud)</h2>
+            
+            <div class="paso">
+                <span class="paso-numero">1</span>
+                <strong>Acceder al sistema</strong><br>
+                URL: <code>https://coorditm.github.io/ssp-portatil/</code><br>
+                Hacer clic en <strong>"Registrar Solicitud"</strong>
+            </div>
+            
+            <div class="paso">
+                <span class="paso-numero">2</span>
+                <strong>Completar datos del paciente</strong><br>
+                • DNI del paciente<br>
+                • Nombre y apellido completo<br>
+                • Personal de salud que solicita (tu nombre)
+            </div>
+            
+            <div class="paso">
+                <span class="paso-numero">3</span>
+                <strong>Agregar notas (opcional)</strong><br>
+                Indicaciones especiales: posición, proyecciones, etc.
+            </div>
+            
+            <div class="paso">
+                <span class="paso-numero">4</span>
+                <strong>Tomar foto de la solicitud física</strong><br>
+                Presionar 📷 y fotografiar el papel de solicitud
+            </div>
+            
+            <div class="paso">
+                <span class="paso-numero">5</span>
+                <strong>Registrar</strong><br>
+                Presionar <strong>"Registrar Solicitud"</strong><br>
+                <strong>¡Guardar el DNI!</strong> Es el código de seguimiento.
+            </div>
+
+            <div class="tip">
+                El sistema guarda automáticamente la fecha y hora exacta de registro.
+            </div>
+            
+            <div class="warning">
+                Si no tomas foto de la solicitud, no podrás registrarla. La foto es obligatoria.
+            </div>
+        </section>
+
+        <!-- SECCIÓN 4: CONSULTAR ESTADO -->
+        <section class="manual-section">
+            <h2>🔍 4. Cómo Consultar Estado (Paciente/Familiar)</h2>
+            
+            <div class="paso">
+                <span class="paso-numero">1</span>
+                <strong>Acceder al sistema</strong><br>
+                URL: <code>https://coorditm.github.io/ssp-portatil/</code><br>
+                Hacer clic en <strong>"Consultar Estado"</strong>
+            </div>
+            
+            <div class="paso">
+                <span class="paso-numero">2</span>
+                <strong>Ingresar DNI del paciente</strong><br>
+                El mismo DNI que se usó al registrar la solicitud
+            </div>
+            
+            <div class="paso">
+                <span class="paso-numero">3</span>
+                <strong>Ver resultado</strong><br>
+                Muestra: fecha de registro, estado actual, tecnólogo asignado
+            </div>
+
+            <div class="tip">
+                Estados posibles: ⏳ Pendiente | 🚶 En camino | 🔬 Atendiendo | ✅ Atendido | ❌ No atendido
+            </div>
+        </section>
+
+        <!-- SECCIÓN 5: TECNÓLOGO -->
+        <section class="manual-section">
+            <h2>☢️ 5. Cómo Usar el Dashboard (Tecnólogo Médico)</h2>
+            
+            <h3>5.1 Ingresar al sistema</h3>
+            <div class="paso">
+                <span class="paso-numero">1</span>
+                URL: <code>https://coorditm.github.io/ssp-portatil/</code><br>
+                Hacer clic en <strong>"Tecnólogo Médico"</strong>
+            </div>
+            <div class="paso">
+                <span class="paso-numero">2</span>
+                Ingresar <strong>DNI</strong> y <strong>contraseña</strong> (asignados por admin)
+            </div>
+
+            <h3>5.2 Atender una solicitud</h3>
+            <div class="paso">
+                <span class="paso-numero">1</span>
+                En el dashboard, ver solicitudes <strong>⏳ Pendientes</strong>
+            </div>
+            <div class="paso">
+                <span class="paso-numero">2</span>
+                Presionar <strong>"🚶 EN CAMINO"</strong> cuando vayas a la habitación
+            </div>
+            <div class="paso">
+                <span class="paso-numero">3</span>
+                <strong>(Opcional)</strong> Presionar <strong>"📝 NOTAS"</strong> para registrar contingencias: fallas de equipo, paciente no disponible, etc.
+            </div>
+            <div class="paso">
+                <span class="paso-numero">4</span>
+                Presionar <strong>"✅ FINALIZAR"</strong> cuando termines el estudio
+            </div>
+
+            <h3>5.3 Si no puedes atender</h3>
+            <div class="paso">
+                <span class="paso-numero">1</span>
+                Presionar <strong>"❌ NO ATENDER"</strong>
+            </div>
+            <div class="paso">
+                <span class="paso-numero">2</span>
+                Escribir el motivo: equipo dañado, paciente ausente, etc.
+            </div>
+            <div class="paso">
+                <span class="paso-numero">3</span>
+                El admin puede <strong>revertir</strong> la solicitud si se resuelve el problema
+            </div>
+
+            <div class="tip">
+                El sistema calcula automáticamente el tiempo transcurrido desde que se registró la solicitud.
+            </div>
+            
+            <div class="warning">
+                Si pasan más de 30 minutos sin atender, la solicitud se pone 🟡 amarilla. Si pasan 60 minutos, se pone 🔴 roja.
+            </div>
+        </section>
+
+        <!-- SECCIÓN 6: ADMIN -->
+        <section class="manual-section">
+            <h2>⚙️ 6. Cómo Usar el Panel Admin</h2>
+            
+            <h3>6.1 Crear tecnólogos</h3>
+            <div class="paso">
+                <span class="paso-numero">1</span>
+                Ingresar como admin
+            </div>
+            <div class="paso">
+                <span class="paso-numero">2</span>
+                Completar: DNI, nombre completo, contraseña
+            </div>
+            <div class="paso">
+                <span class="paso-numero">3</span>
+                Presionar <strong>"Crear Tecnólogo"</strong>
+            </div>
+
+            <h3>6.2 Generar reportes</h3>
+            <div class="paso">
+                <span class="paso-numero">1</span>
+                Seleccionar tipo: <strong>General</strong> (todos) o <strong>Individual</strong> (por tecnólogo)
+            </div>
+            <div class="paso">
+                <span class="paso-numero">2</span>
+                Seleccionar rango de fechas: Desde / Hasta
+            </div>
+            <div class="paso">
+                <span class="paso-numero">3</span>
+                Presionar <strong>"Generar Reporte"</strong>
+            </div>
+            <div class="paso">
+                <span class="paso-numero">4</span>
+                <strong>Exportar a Excel:</strong> Presionar <strong>"📥 Exportar a Excel"</strong>
+            </div>
+
+            <div class="tip">
+                El reporte incluye: fecha/hora, DNI, paciente, tecnólogo, tiempo de atención, estado.
+            </div>
+        </section>
+
+        <!-- SECCIÓN 7: FAQ -->
+        <section class="manual-section">
+            <h2>❓ 7. Preguntas Frecuentes</h2>
+            
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="this.nextElementSibling.classList.toggle('active')">
+                    🔹 ¿Qué pasa si pierdo el DNI de seguimiento?
+                </div>
+                <div class="faq-respuesta">
+                    El personal de salud que registró la solicitud puede consultarla en el dashboard. También se puede buscar por nombre del paciente en el panel de admin.
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="this.nextElementSibling.classList.toggle('active')">
+                    🔹 ¿Puedo editar una solicitud ya registrada?
+                </div>
+                <div class="faq-respuesta">
+                    No. Si hay un error, registra una nueva solicitud y marca la anterior como "No atendido" con el motivo "Error de registro".
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="this.nextElementSibling.classList.toggle('active')">
+                    🔹 ¿Qué hago si la foto no carga?
+                </div>
+                <div class="faq-respuesta">
+                    Verifica tu conexión a internet. Si el problema persiste, intenta con una foto más pequeña (menos de 5MB).
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="this.nextElementSibling.classList.toggle('active')">
+                    🔹 ¿El sistema funciona sin internet?
+                </div>
+                <div class="faq-respuesta">
+                    No. Necesita conexión a internet para sincronizar con la base de datos. Si se cae el WiFi, espera a que vuelva para registrar.
+                </div>
+            </div>
+            
+            <div class="faq-item">
+                <div class="faq-pregunta" onclick="this.nextElementSibling.classList.toggle('active')">
+                    🔹 ¿Cómo cambio mi contraseña de tecnólogo?
+                </div>
+                <div class="faq-respuesta">
+                    Contacta al administrador. Solo el admin puede crear o modificar usuarios de tecnólogos.
+                </div>
+            </div>
+        </section>
+
+        <!-- SECCIÓN 8: CONTACTO -->
+        <section class="manual-section">
+            <h2>📞 8. Soporte Técnico</h2>
+            <p>Si tienes problemas con el sistema, contacta a:</p>
+            <div class="card" style="margin-top: 15px;">
+                <p><strong>Responsable del sistema:</strong> [Tu nombre]</p>
+                <p><strong>Email:</strong> [tu email]</p>
+                <p><strong>Celular:</strong> [tu celular]</p>
+                <p><strong>URL del sistema:</strong> <code>https://coorditm.github.io/ssp-portatil/</code></p>
+            </div>
+        </section>
+
+        <a href="index.html" class="btn-volver">← Volver al inicio</a>
+    </div>
+</body>
+</html>
