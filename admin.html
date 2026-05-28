@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administrador - HNASS</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header-main">
+            <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
+            <h2>Panel de Administración</h2>
+        </header>
+
+        <!-- Crear Tecnólogo -->
+        <section class="card">
+            <h2>👤 Crear Nuevo Tecnólogo</h2>
+            <form id="formCrearTecnologo">
+                <div class="form-group">
+                    <label>DNI:</label>
+                    <input type="text" id="tecDNI" placeholder="DNI del tecnólogo" maxlength="8" required>
+                </div>
+                <div class="form-group">
+                    <label>Nombre completo:</label>
+                    <input type="text" id="tecNombre" placeholder="Nombre y apellido" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <input type="password" id="tecClave" placeholder="Contraseña" required>
+                </div>
+                <button type="submit" class="btn-primary">➕ Crear Tecnólogo</button>
+            </form>
+        </section>
+
+        <!-- Lista de tecnólogos -->
+        <section class="card">
+            <h2>👥 Tecnólogos Registrados</h2>
+            <div id="listaTecnologos" class="lista">
+                <p class="empty">Cargando...</p>
+            </div>
+        </section>
+
+        <!-- Reportes -->
+        <section class="card">
+            <h2>📈 Reportes</h2>
+            <div class="form-group">
+                <label>Desde:</label>
+                <input type="date" id="fechaDesde">
+            </div>
+            <div class="form-group">
+                <label>Hasta:</label>
+                <input type="date" id="fechaHasta">
+            </div>
+            <button onclick="generarReporte()" class="btn-primary">📊 Generar Reporte</button>
+            
+            <div id="resultadoReporte" class="reporte-resultado" style="margin-top:20px;"></div>
+        </section>
+
+        <a href="index.html" class="btn-volver" onclick="localStorage.clear()">← Cerrar sesión</a>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
