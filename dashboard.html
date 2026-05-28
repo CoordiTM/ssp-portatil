@@ -15,6 +15,12 @@
 
         <section class="card filtros">
             <h2>📊 Solicitudes por Estado</h2>
+            
+            <div class="form-group">
+                <label>Filtrar por fecha:</label>
+                <input type="date" id="fechaFiltro">
+            </div>
+            
             <div class="filtro-botones">
                 <button onclick="filtrarEstado('pendiente')" class="btn-filtro btn-pendiente" id="btn-pendiente">
                     ⏳ Pendientes <span class="badge" id="countPendiente">0</span>
@@ -46,10 +52,10 @@
                             <th>👤 Paciente</th>
                             <th>🙋 Solicita</th>
                             <th>📝 Notas</th>
-                            <th>📷 Foto</th>
+                            <th>📷</th>
                             <th>🔬 Tecnólogo</th>
                             <th>⚡ Estado</th>
-                            <th>🎮 Acciones</th>
+                            <th>🎮</th>
                         </tr>
                     </thead>
                     <tbody id="tbodySolicitudes">
