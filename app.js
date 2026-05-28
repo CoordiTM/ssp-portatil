@@ -63,6 +63,12 @@ function formatearFechaHora(timestamp) {
     });
 }
 
+function formatearFechaInput(timestamp) {
+    if (!timestamp) return '';
+    const fecha = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return fecha.toISOString().split('T')[0];
+}
+
 // ==================== PÁGINA: REGISTRAR ====================
 
 const formSolicitud = document.getElementById('formSolicitud');
@@ -77,9 +83,10 @@ if (formSolicitud) {
         try {
             const file = document.getElementById('fotoSolicitud').files[0];
             const fotoUrl = await subirFotoCloudinary(file);
+            const dni = document.getElementById('dniPaciente').value;
             
-            const docRef = await addDoc(collection(db, 'solicitudes'), {
-                dniPaciente: document.getElementById('dniPaciente').value,
+            await addDoc(collection(db, 'solicitudes'), {
+                dniPaciente: dni,
                 nombrePaciente: document.getElementById('nombrePaciente').value,
                 solicitadoPor: document.getElementById('solicitadoPor').value,
                 notas: document.getElementById('notas').value || '',
@@ -95,9 +102,8 @@ if (formSolicitud) {
                 motivoRechazo: null
             });
             
-            // Mostrar código de seguimiento
-            alert(`✅ Solicitud registrada correctamente\n\n🆔 CÓDIGO DE SEGUIMIENTO: ${docRef.id}\n\nGuarde este código para consultar el estado de su solicitud.`);
             formSolicitud.reset();
+            alert(`✅ Solicitud registrada correctamente\n\n🆔 CÓDIGO DE SEGUIMIENTO: ${dni}\n\nGuarde este DNI para consultar el estado de su solicitud.`);
             
         } catch (error) {
             console.error(error);
@@ -109,48 +115,52 @@ if (formSolicitud) {
     });
 }
 
-// ==================== PÁGINA: CONSULTA (NUEVA) ====================
+// ==================== PÁGINA: CONSULTA ====================
 
 const formConsulta = document.getElementById('formConsulta');
 if (formConsulta) {
     formConsulta.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const codigo = document.getElementById('codigoSeguimiento').value.trim();
+        const dni = document.getElementById('codigoSeguimiento').value.trim();
         const resultado = document.getElementById('resultadoConsulta');
         
-        if (!codigo) {
-            resultado.innerHTML = '<p class="empty">Ingrese un código de seguimiento</p>';
+        if (!dni) {
+            resultado.innerHTML = '<p class="empty">Ingrese un DNI para consultar</p>';
             return;
         }
         
         try {
-            const docSnap = await getDocs(query(collection(db, 'solicitudes'), where('__name__', '==', codigo)));
+            const q = query(collection(db, 'solicitudes'), where('dniPaciente', '==', dni), orderBy('timestamps.creado', 'desc'));
+            const snapshot = await getDocs(q);
             
-            if (docSnap.empty) {
-                resultado.innerHTML = '<p class="empty">❌ No se encontró la solicitud</p>';
+            if (snapshot.empty) {
+                resultado.innerHTML = '<p class="empty">❌ No se encontró solicitud con ese DNI</p>';
                 return;
             }
             
-            const data = docSnap.docs[0].data();
-            const estadosLabels = {
-                'pendiente': '⏳ Pendiente',
-                'en_camino': '🚶 En camino',
-                'rechazado': '❌ No atendido',
-                'finalizado': '✅ Atendido'
-            };
+            let html = '';
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const estadosLabels = {
+                    'pendiente': '⏳ Pendiente',
+                    'en_camino': '🚶 En camino',
+                    'rechazado': '❌ No atendido',
+                    'finalizado': '✅ Atendido'
+                };
+                
+                html += `
+                    <div class="card">
+                        <h3>📋 Solicitud - ${formatearFechaHora(data.timestamps?.creado)}</h3>
+                        <p><strong>👤 Paciente:</strong> ${data.nombrePaciente}</p>
+                        <p><strong>📅 Fecha registro:</strong> ${formatearFechaHora(data.timestamps?.creado)}</p>
+                        <p><strong>⚡ Estado:</strong> <span class="estado-${data.estado}">${estadosLabels[data.estado]}</span></p>
+                        ${data.tecnologoAsignado ? `<p><strong>🔬 Tecnólogo:</strong> ${data.tecnologoAsignado}</p>` : ''}
+                        ${data.motivoRechazo ? `<p><strong>❌ Motivo:</strong> ${data.motivoRechazo}</p>` : ''}
+                    </div>
+                `;
+            });
             
-            resultado.innerHTML = `
-                <div class="card">
-                    <h3>📋 Estado de su Solicitud</h3>
-                    <p><strong>🆔 Código:</strong> ${codigo}</p>
-                    <p><strong>👤 Paciente:</strong> ${data.nombrePaciente}</p>
-                    <p><strong>📅 Fecha registro:</strong> ${formatearFechaHora(data.timestamps?.creado)}</p>
-                    <p><strong>⚡ Estado:</strong> <span class="estado-${data.estado}">${estadosLabels[data.estado]}</span></p>
-                    ${data.tecnologoAsignado ? `<p><strong>🔬 Tecnólogo:</strong> ${data.tecnologoAsignado}</p>` : ''}
-                    ${data.motivoRechazo ? `<p><strong>❌ Motivo:</strong> ${data.motivoRechazo}</p>` : ''}
-                    ${data.fotoSolicitud ? `<a href="${data.fotoSolicitud}" target="_blank" class="btn-foto">📷 Ver solicitud</a>` : ''}
-                </div>
-            `;
+            resultado.innerHTML = html;
             
         } catch (error) {
             resultado.innerHTML = `<p class="empty">❌ Error: ${error.message}</p>`;
@@ -170,7 +180,7 @@ if (formLogin) {
     
     if (rol === 'admin') {
         tituloLogin.textContent = '⚙️ Acceso Administrador';
-        grupoDNI.style.display = 'none';
+        if (grupoDNI) grupoDNI.style.display = 'none';
     }
     
     formLogin.addEventListener('submit', async (e) => {
@@ -207,6 +217,7 @@ if (formLogin) {
 
 const tbody = document.getElementById('tbodySolicitudes');
 let estadoFiltro = 'todos';
+let fechaFiltro = '';
 
 if (tbody) {
     const nombreTec = localStorage.getItem('tecnologoNombre');
@@ -215,11 +226,24 @@ if (tbody) {
         if (el) el.textContent = nombreTec;
     }
     
+    // Filtro por fecha
+    const inputFecha = document.getElementById('fechaFiltro');
+    if (inputFecha) {
+        inputFecha.addEventListener('change', () => {
+            fechaFiltro = inputFecha.value;
+            cargarSolicitudes();
+        });
+    }
+    
     window.filtrarEstado = function(estado) {
         estadoFiltro = estado;
         
-        document.querySelectorAll('.btn-filtro').forEach(btn => btn.classList.remove('active'));
-        document.getElementById('btn-' + estado).classList.add('active');
+        // Actualizar botones activos de forma segura
+        document.querySelectorAll('.btn-filtro').forEach(btn => {
+            if (btn) btn.classList.remove('active');
+        });
+        const btnActivo = document.getElementById('btn-' + estado);
+        if (btnActivo) btnActivo.classList.add('active');
         
         const titulos = {
             'todos': '📋 Todas las Solicitudes',
@@ -228,7 +252,8 @@ if (tbody) {
             'rechazado': '❌ Solicitudes No Atendidas',
             'finalizado': '✅ Solicitudes Atendidas'
         };
-        document.getElementById('tituloLista').textContent = titulos[estado];
+        const tituloEl = document.getElementById('tituloLista');
+        if (tituloEl) tituloEl.textContent = titulos[estado] || '📋 Solicitudes';
         
         cargarSolicitudes();
     };
@@ -254,7 +279,7 @@ if (tbody) {
             `;
         } else if (data.estado === 'rechazado') {
             acciones = `
-                <button onclick="revertirRechazo('${id}')" class="btn-accion btn-revertir">↩️ Revertir</button>
+                <button onclick="revertirRechazo('${id}')" class="btn-accion btn-revertir">↩️</button>
                 <span class="motivo-rechazo">${data.motivoRechazo || ''}</span>
             `;
         } else if (data.estado === 'finalizado') {
@@ -295,28 +320,43 @@ if (tbody) {
         }
         if (nuevoEstado === 'finalizado') updates['timestamps.finalizado'] = now;
         
-        await updateDoc(doc(db, 'solicitudes', id), updates);
+        try {
+            await updateDoc(doc(db, 'solicitudes', id), updates);
+        } catch (error) {
+            console.error('Error cambiando estado:', error);
+            alert('❌ Error: ' + error.message);
+        }
     };
     
     window.mostrarRechazo = async function(id) {
         const motivo = prompt('¿Por qué no es posible atender esta solicitud?');
         if (motivo && motivo.trim() !== '') {
-            await updateDoc(doc(db, 'solicitudes', id), {
-                estado: 'rechazado',
-                'timestamps.rechazado': serverTimestamp(),
-                motivoRechazo: motivo,
-                tecnologoAsignado: localStorage.getItem('tecnologoNombre') || 'Tecnólogo'
-            });
+            try {
+                await updateDoc(doc(db, 'solicitudes', id), {
+                    estado: 'rechazado',
+                    'timestamps.rechazado': serverTimestamp(),
+                    motivoRechazo: motivo,
+                    tecnologoAsignado: localStorage.getItem('tecnologoNombre') || 'Tecnólogo'
+                });
+            } catch (error) {
+                console.error('Error rechazando:', error);
+                alert('❌ Error: ' + error.message);
+            }
         }
     };
     
     window.revertirRechazo = async function(id) {
         if (confirm('¿Revertir esta solicitud a estado Pendiente?')) {
-            await updateDoc(doc(db, 'solicitudes', id), {
-                estado: 'pendiente',
-                motivoRechazo: null,
-                tecnologoAsignado: null
-            });
+            try {
+                await updateDoc(doc(db, 'solicitudes', id), {
+                    estado: 'pendiente',
+                    motivoRechazo: null,
+                    tecnologoAsignado: null
+                });
+            } catch (error) {
+                console.error('Error revirtiendo:', error);
+                alert('❌ Error: ' + error.message);
+            }
         }
     };
     
@@ -325,33 +365,43 @@ if (tbody) {
     function cargarSolicitudes() {
         if (unsubscribe) unsubscribe();
         
-        let q;
-        if (estadoFiltro === 'todos') {
-            q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
-        } else {
-            q = query(
-                collection(db, 'solicitudes'), 
-                where('estado', '==', estadoFiltro),
-                orderBy('timestamps.creado', 'desc')
-            );
-        }
+        // Sin filtros complejos para evitar índices
+        const q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
         
         unsubscribe = onSnapshot(q, (snapshot) => {
             let html = '';
             let counts = { pendiente: 0, en_camino: 0, rechazado: 0, finalizado: 0 };
             
-            snapshot.forEach((doc) => {
-                const data = doc.data();
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                
+                // Filtrar por estado
+                if (estadoFiltro !== 'todos' && data.estado !== estadoFiltro) return;
+                
+                // Filtrar por fecha
+                if (fechaFiltro && data.timestamps?.creado) {
+                    const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
+                    if (fechaDoc !== fechaFiltro) return;
+                }
+                
                 if (counts[data.estado] !== undefined) counts[data.estado]++;
-                html += crearFilaSolicitud({ id: doc.id, data });
+                html += crearFilaSolicitud({ id: docSnap.id, data });
             });
             
-            document.getElementById('countPendiente').textContent = counts.pendiente;
-            document.getElementById('countEnCamino').textContent = counts.en_camino;
-            document.getElementById('countRechazado').textContent = counts.rechazado;
-            document.getElementById('countFinalizado').textContent = counts.finalizado;
+            const countPendiente = document.getElementById('countPendiente');
+            const countEnCamino = document.getElementById('countEnCamino');
+            const countRechazado = document.getElementById('countRechazado');
+            const countFinalizado = document.getElementById('countFinalizado');
+            
+            if (countPendiente) countPendiente.textContent = counts.pendiente;
+            if (countEnCamino) countEnCamino.textContent = counts.en_camino;
+            if (countRechazado) countRechazado.textContent = counts.rechazado;
+            if (countFinalizado) countFinalizado.textContent = counts.finalizado;
             
             tbody.innerHTML = html || '<tr><td colspan="10" class="empty">No hay solicitudes en esta categoría</td></tr>';
+        }, (error) => {
+            console.error('Error en snapshot:', error);
+            tbody.innerHTML = `<tr><td colspan="10" class="empty">❌ Error: ${error.message}</td></tr>`;
         });
     }
     
@@ -395,16 +445,17 @@ if (formCrearTecnologo) {
         const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
         onSnapshot(q, (snapshot) => {
             let html = '';
-            snapshot.forEach((doc) => {
-                const t = doc.data();
+            snapshot.forEach((docSnap) => {
+                const t = docSnap.data();
                 html += `
                     <div class="tecnologo-item">
                         <span><strong>${t.nombre}</strong> (DNI: ${t.dni})</span>
-                        <button onclick="eliminarTecnologo('${doc.id}')" class="btn-eliminar">🗑️</button>
+                        <button onclick="eliminarTecnologo('${docSnap.id}')" class="btn-eliminar">🗑️</button>
                     </div>
                 `;
             });
-            document.getElementById('listaTecnologos').innerHTML = html || '<p class="empty">No hay tecnólogos registrados</p>';
+            const lista = document.getElementById('listaTecnologos');
+            if (lista) lista.innerHTML = html || '<p class="empty">No hay tecnólogos registrados</p>';
         });
     }
     
@@ -439,8 +490,8 @@ window.generarReporte = async function() {
     let tiemposAtencion = [];
     let porTecnologo = {};
     
-    snapshot.forEach((doc) => {
-        const d = doc.data();
+    snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
         const fechaCreado = d.timestamps?.creado?.toDate();
         
         if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta) {
@@ -476,7 +527,7 @@ window.generarReporte = async function() {
         <div class="card">
             <h3>📊 Reporte del ${desde} al ${hasta}</h3>
             <div class="stats-reporte">
-                <div class="stat-box"><strong>Total solicitudes:</strong> ${total}</div>
+                <div class="stat-box"><strong>Total:</strong> ${total}</div>
                 <div class="stat-box"><strong>Atendidas:</strong> ${atendidos}</div>
                 <div class="stat-box"><strong>No atendidas:</strong> ${rechazados}</div>
                 <div class="stat-box"><strong>Pendientes:</strong> ${pendientes}</div>
