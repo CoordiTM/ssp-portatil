@@ -3,17 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard - HNASS SSP Rx Portátil</title>
+    <title>Dashboard - HNASS</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header class="header-main">
-            <h1>🏥 HNASS - Servicios de Radiodiagnóstico y Ecografía</h1>
+            <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
             <p id="userInfo">Tecnólogo: <span id="nombreTecnologo">-</span></p>
         </header>
 
-        <!-- Filtros de estado -->
         <section class="card filtros">
             <h2>📊 Solicitudes por Estado</h2>
             <div class="filtro-botones">
@@ -26,6 +25,9 @@
                 <button onclick="filtrarEstado('atendiendo')" class="btn-filtro btn-atendiendo" id="btn-atendiendo">
                     🔬 Atendiendo <span class="badge" id="countAtendiendo">0</span>
                 </button>
+                <button onclick="filtrarEstado('rechazado')" class="btn-filtro btn-rechazado" id="btn-rechazado">
+                    ❌ No atendido <span class="badge" id="countRechazado">0</span>
+                </button>
                 <button onclick="filtrarEstado('finalizado')" class="btn-filtro btn-finalizado" id="btn-finalizado">
                     ✅ Atendidos <span class="badge" id="countFinalizado">0</span>
                 </button>
@@ -35,7 +37,6 @@
             </div>
         </section>
 
-        <!-- Lista de solicitudes -->
         <section class="card">
             <h2 id="tituloLista">📋 Todas las Solicitudes</h2>
             <div id="listaSolicitudes" class="lista">
@@ -43,7 +44,7 @@
             </div>
         </section>
 
-        <a href="index.html" class="btn-volver">← Cerrar sesión</a>
+        <a href="index.html" class="btn-volver" onclick="localStorage.clear()">← Cerrar sesión</a>
     </div>
 
     <script type="module" src="app.js"></script>
