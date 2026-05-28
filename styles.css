@@ -488,3 +488,24 @@ body {
         min-width: 100%;
     }
 }
+/* Botón del manual - ocupa toda la fila */
+.manual-card {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #ebf5fb 0%, #ffffff 100%);
+    border: 2px solid #2e86ab;
+}
+
+.manual-card:hover {
+    background: linear-gradient(135deg, #d4edfc 0%, #ffffff 100%);
+    border-color: #1a5276;
+    transform: translateY(-3px);
+}
+
+.manual-card h3 {
+    color: #1a5276;
+    font-size: 1.3rem;
+}
+
+.manual-card .icon {
+    font-size: 2.5rem;
+}
