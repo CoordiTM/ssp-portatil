@@ -661,3 +661,221 @@ window.exportarExcel = function() {
     link.click();
     document.body.removeChild(link);
 };
+// ==================== PÁGINA: ADMIN - GESTIÓN DE SOLICITUDES ====================
+
+const listaAdmin = document.getElementById('listaSolicitudesAdmin');
+let estadoFiltroAdmin = 'todos';
+let fechaFiltroAdmin = '';
+
+if (listaAdmin) {
+    // Verificar que sea admin
+    if (localStorage.getItem('rol') !== 'admin') {
+        alert('Acceso denegado');
+        window.location.href = 'index.html';
+    }
+    
+    const inputFechaAdmin = document.getElementById('fechaFiltroAdmin');
+    if (inputFechaAdmin) {
+        inputFechaAdmin.addEventListener('change', () => {
+            fechaFiltroAdmin = inputFechaAdmin.value;
+            cargarSolicitudesAdmin();
+        });
+    }
+    
+    window.filtrarEstadoAdmin = function(estado) {
+        estadoFiltroAdmin = estado;
+        
+        document.querySelectorAll('[id^="btn-admin-"]').forEach(btn => {
+            if (btn) btn.classList.remove('active');
+        });
+        const btnActivo = document.getElementById('btn-admin-' + estado);
+        if (btnActivo) btnActivo.classList.add('active');
+        
+        cargarSolicitudesAdmin();
+    };
+    
+    function formatearFechaHora(timestamp) {
+        if (!timestamp) return '-';
+        const fecha = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        return fecha.toLocaleString('es-PE', { 
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+    
+    function crearCardAdmin(sol) {
+        const id = sol.id;
+        const data = sol.data;
+        
+        const fechaHora = formatearFechaHora(data.timestamps?.creado);
+        
+        const estadosLabels = {
+            'pendiente': '⏳ Pendiente',
+            'en_camino': '🚶 En camino',
+            'rechazado': '❌ No atendido',
+            'finalizado': '✅ Atendido'
+        };
+        
+        // Opciones de cambio de estado según estado actual
+        let opcionesEstado = '';
+        if (data.estado !== 'pendiente') {
+            opcionesEstado += `<option value="pendiente">⏳ Pendiente</option>`;
+        }
+        if (data.estado !== 'en_camino') {
+            opcionesEstado += `<option value="en_camino">🚶 En camino</option>`;
+        }
+        if (data.estado !== 'finalizado') {
+            opcionesEstado += `<option value="finalizado">✅ Finalizado</option>`;
+        }
+        if (data.estado !== 'rechazado') {
+            opcionesEstado += `<option value="rechazado">❌ No atendido</option>`;
+        }
+        
+        return `
+            <div class="solicitud-card-v2" id="admin-card-${id}" style="border-left-color: #666;">
+                <div class="card-header">
+                    <div class="card-titulo">
+                        <strong>${data.nombrePaciente || '-'}</strong>
+                        <span class="dni">DNI: ${data.dniPaciente || '-'}</span>
+                    </div>
+                    <span class="estado-badge ${data.estado}">${estadosLabels[data.estado]}</span>
+                </div>
+                
+                <div class="card-info">
+                    <div class="info-row">
+                        <span>🕐 Registro: ${fechaHora}</span>
+                        <span>🔬 ${data.tecnologoAsignado || 'Sin asignar'}</span>
+                    </div>
+                    <div class="info-row">
+                        <span>🙋 ${data.solicitadoPor}</span>
+                        <span>📝 ${data.notas || '-'}</span>
+                    </div>
+                    ${data.motivoRechazo ? `<div class="info-row" style="color:#e74c3c;">❌ Motivo rechazo: ${data.motivoRechazo}</div>` : ''}
+                    ${data.notasContingencia ? `<div class="info-row" style="color:#e65100;">📝 Notas técnicas: ${data.notasContingencia}</div>` : ''}
+                </div>
+                
+                <div class="card-foto">
+                    ${data.fotoSolicitud ? `<a href="${data.fotoSolicitud}" target="_blank">📷 Ver solicitud</a>` : ''}
+                </div>
+                
+                <div class="card-actions" style="margin-top:10px; padding-top:10px; border-top:1px solid #eee;">
+                    <div style="display:flex; gap:8px; margin-bottom:8px;">
+                        <select id="estado-${id}" style="flex:1; padding:8px; border-radius:6px; border:1px solid #ddd;">
+                            ${opcionesEstado}
+                        </select>
+                        <button onclick="cambiarEstadoAdmin('${id}')" class="btn-action" style="background:#2e86ab; color:white;">🔄 Cambiar</button>
+                    </div>
+                    <div style="display:flex; gap:8px;">
+                        <button onclick="editarSolicitud('${id}')" class="btn-action" style="background:#f39c12; color:white;">✏️ Editar</button>
+                        <button onclick="eliminarSolicitud('${id}')" class="btn-action" style="background:#e74c3c; color:white;">🗑️ Eliminar</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    window.cambiarEstadoAdmin = async function(id) {
+        const nuevoEstado = document.getElementById(`estado-${id}`).value;
+        if (!nuevoEstado) return;
+        
+        if (!confirm(`¿Cambiar estado a "${nuevoEstado}"?`)) return;
+        
+        const updates = { estado: nuevoEstado };
+        const now = serverTimestamp();
+        
+        // Actualizar timestamps según el nuevo estado
+        if (nuevoEstado === 'en_camino') {
+            updates['timestamps.enCamino'] = now;
+        } else if (nuevoEstado === 'finalizado') {
+            updates['timestamps.finalizado'] = now;
+        } else if (nuevoEstado === 'rechazado') {
+            updates['timestamps.rechazado'] = now;
+            if (!updates.motivoRechazo) updates.motivoRechazo = 'Cambiado por admin';
+        } else if (nuevoEstado === 'pendiente') {
+            // Limpiar datos de asignación
+            updates['tecnologoAsignado'] = null;
+            updates['motivoRechazo'] = null;
+            updates['notasContingencia'] = null;
+        }
+        
+        try {
+            await updateDoc(doc(db, 'solicitudes', id), updates);
+            alert('✅ Estado actualizado correctamente');
+        } catch (error) {
+            alert('❌ Error: ' + error.message);
+        }
+    };
+    
+    window.eliminarSolicitud = async function(id) {
+        if (!confirm('⚠️ ¿ESTÁS SEGURO de eliminar esta solicitud?\n\nEsta acción NO se puede deshacer.')) return;
+        
+        try {
+            await deleteDoc(doc(db, 'solicitudes', id));
+            alert('✅ Solicitud eliminada');
+        } catch (error) {
+            alert('❌ Error: ' + error.message);
+        }
+    };
+    
+    window.editarSolicitud = async function(id) {
+        const docSnap = await getDocs(query(collection(db, 'solicitudes'), where('__name__', '==', id)));
+        if (docSnap.empty) {
+            alert('No se encontró la solicitud');
+            return;
+        }
+        
+        const data = docSnap.docs[0].data();
+        
+        const nuevoNombre = prompt('Nombre del paciente:', data.nombrePaciente || '');
+        const nuevoDNI = prompt('DNI del paciente:', data.dniPaciente || '');
+        const nuevasNotas = prompt('Notas:', data.notas || '');
+        
+        if (nuevoNombre === null && nuevoDNI === null && nuevasNotas === null) return;
+        
+        const updates = {};
+        if (nuevoNombre !== null) updates.nombrePaciente = nuevoNombre;
+        if (nuevoDNI !== null) updates.dniPaciente = nuevoDNI;
+        if (nuevasNotas !== null) updates.notas = nuevasNotas;
+        
+        try {
+            await updateDoc(doc(db, 'solicitudes', id), updates);
+            alert('✅ Solicitud actualizada');
+        } catch (error) {
+            alert('❌ Error: ' + error.message);
+        }
+    };
+    
+    let unsubscribeAdmin = null;
+    
+    function cargarSolicitudesAdmin() {
+        if (unsubscribeAdmin) unsubscribeAdmin();
+        
+        const q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
+        
+        unsubscribeAdmin = onSnapshot(q, (snapshot) => {
+            let html = '';
+            
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                
+                // Filtro por estado
+                if (estadoFiltroAdmin !== 'todos' && data.estado !== estadoFiltroAdmin) return;
+                
+                // Filtro por fecha
+                if (fechaFiltroAdmin && data.timestamps?.creado) {
+                    const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
+                    if (fechaDoc !== fechaFiltroAdmin) return;
+                }
+                
+                html += crearCardAdmin({ id: docSnap.id, data });
+            });
+            
+            listaAdmin.innerHTML = html || '<p class="empty">No hay solicitudes</p>';
+        }, (error) => {
+            console.error('Error:', error);
+            listaAdmin.innerHTML = `<p class="empty">❌ Error: ${error.message}</p>`;
+        });
+    }
+    
+    cargarSolicitudesAdmin();
+}
