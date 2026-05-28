@@ -1,0 +1,250 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: #f0f2f5;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    text-align: center;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+}
+
+header h1 {
+    font-size: 1.8rem;
+    margin-bottom: 5px;
+}
+
+.card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.card h2 {
+    margin-bottom: 15px;
+    color: #667eea;
+    font-size: 1.3rem;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #555;
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-group small {
+    color: #888;
+    font-size: 0.85rem;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, opacity 0.2s;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+}
+
+.btn-primary:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Stats */
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.stat-box {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.stat-box span {
+    display: block;
+    font-size: 1.5rem;
+    color: #667eea;
+}
+
+/* Solicitudes */
+.lista {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.empty {
+    text-align: center;
+    color: #888;
+    padding: 40px;
+}
+
+.solicitud-card {
+    background: #fafafa;
+    border-radius: 10px;
+    padding: 15px;
+    border-left: 4px solid #667eea;
+    transition: transform 0.2s;
+}
+
+.solicitud-card:hover {
+    transform: translateX(5px);
+}
+
+.solicitud-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+
+.tag {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.tag-normal { background: #e3f2fd; color: #1976d2; }
+.tag-urgente { background: #fff3e0; color: #f57c00; }
+.tag-emergencia { background: #ffebee; color: #d32f2f; }
+
+.estado {
+    font-weight: 600;
+    color: #555;
+}
+
+.tiempo {
+    font-family: monospace;
+    color: #888;
+}
+
+.solicitud-body {
+    margin-bottom: 10px;
+}
+
+.solicitud-body p {
+    margin-bottom: 5px;
+    font-size: 0.95rem;
+}
+
+.btn-foto {
+    display: inline-block;
+    margin-top: 5px;
+    padding: 6px 12px;
+    background: #e3f2fd;
+    color: #1976d2;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.solicitud-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.solicitud-actions button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-camino { background: #fff3e0; color: #f57c00; }
+.btn-atendiendo { background: #e8f5e9; color: #388e3c; }
+.btn-finalizar { background: #e3f2fd; color: #1976d2; }
+
+.solicitud-actions button:hover {
+    opacity: 0.8;
+}
+
+/* Alertas por tiempo */
+.alerta-amarilla {
+    border-left-color: #ffc107 !important;
+    background: #fffbf0 !important;
+}
+
+.alerta-roja {
+    border-left-color: #f44336 !important;
+    background: #fff5f5 !important;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .solicitud-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
