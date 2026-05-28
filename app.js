@@ -54,7 +54,7 @@ function colorAlerta(timestamp, estado) {
     return '';
 }
 
-function formatearFecha(timestamp) {
+function formatearFechaHora(timestamp) {
     if (!timestamp) return '-';
     const fecha = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
     return fecha.toLocaleString('es-PE', { 
@@ -78,7 +78,7 @@ if (formSolicitud) {
             const file = document.getElementById('fotoSolicitud').files[0];
             const fotoUrl = await subirFotoCloudinary(file);
             
-            await addDoc(collection(db, 'solicitudes'), {
+            const docRef = await addDoc(collection(db, 'solicitudes'), {
                 dniPaciente: document.getElementById('dniPaciente').value,
                 nombrePaciente: document.getElementById('nombrePaciente').value,
                 solicitadoPor: document.getElementById('solicitadoPor').value,
@@ -88,7 +88,6 @@ if (formSolicitud) {
                 timestamps: {
                     creado: serverTimestamp(),
                     enCamino: null,
-                    atendiendo: null,
                     finalizado: null,
                     rechazado: null
                 },
@@ -96,8 +95,9 @@ if (formSolicitud) {
                 motivoRechazo: null
             });
             
+            // Mostrar código de seguimiento
+            alert(`✅ Solicitud registrada correctamente\n\n🆔 CÓDIGO DE SEGUIMIENTO: ${docRef.id}\n\nGuarde este código para consultar el estado de su solicitud.`);
             formSolicitud.reset();
-            alert('✅ Solicitud registrada correctamente');
             
         } catch (error) {
             console.error(error);
@@ -105,6 +105,55 @@ if (formSolicitud) {
         } finally {
             btn.disabled = false;
             btn.textContent = '➕ Registrar Solicitud';
+        }
+    });
+}
+
+// ==================== PÁGINA: CONSULTA (NUEVA) ====================
+
+const formConsulta = document.getElementById('formConsulta');
+if (formConsulta) {
+    formConsulta.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const codigo = document.getElementById('codigoSeguimiento').value.trim();
+        const resultado = document.getElementById('resultadoConsulta');
+        
+        if (!codigo) {
+            resultado.innerHTML = '<p class="empty">Ingrese un código de seguimiento</p>';
+            return;
+        }
+        
+        try {
+            const docSnap = await getDocs(query(collection(db, 'solicitudes'), where('__name__', '==', codigo)));
+            
+            if (docSnap.empty) {
+                resultado.innerHTML = '<p class="empty">❌ No se encontró la solicitud</p>';
+                return;
+            }
+            
+            const data = docSnap.docs[0].data();
+            const estadosLabels = {
+                'pendiente': '⏳ Pendiente',
+                'en_camino': '🚶 En camino',
+                'rechazado': '❌ No atendido',
+                'finalizado': '✅ Atendido'
+            };
+            
+            resultado.innerHTML = `
+                <div class="card">
+                    <h3>📋 Estado de su Solicitud</h3>
+                    <p><strong>🆔 Código:</strong> ${codigo}</p>
+                    <p><strong>👤 Paciente:</strong> ${data.nombrePaciente}</p>
+                    <p><strong>📅 Fecha registro:</strong> ${formatearFechaHora(data.timestamps?.creado)}</p>
+                    <p><strong>⚡ Estado:</strong> <span class="estado-${data.estado}">${estadosLabels[data.estado]}</span></p>
+                    ${data.tecnologoAsignado ? `<p><strong>🔬 Tecnólogo:</strong> ${data.tecnologoAsignado}</p>` : ''}
+                    ${data.motivoRechazo ? `<p><strong>❌ Motivo:</strong> ${data.motivoRechazo}</p>` : ''}
+                    ${data.fotoSolicitud ? `<a href="${data.fotoSolicitud}" target="_blank" class="btn-foto">📷 Ver solicitud</a>` : ''}
+                </div>
+            `;
+            
+        } catch (error) {
+            resultado.innerHTML = `<p class="empty">❌ Error: ${error.message}</p>`;
         }
     });
 }
@@ -131,7 +180,6 @@ if (formLogin) {
         
         if (rol === 'tecnologo') {
             const dni = document.getElementById('dni').value;
-            // Verificar en Firestore
             const q = query(collection(db, 'tecnologos'), where('dni', '==', dni), where('clave', '==', clave));
             const snapshot = await getDocs(q);
             
@@ -157,10 +205,10 @@ if (formLogin) {
 
 // ==================== PÁGINA: DASHBOARD ====================
 
-const lista = document.getElementById('listaSolicitudes');
+const tbody = document.getElementById('tbodySolicitudes');
 let estadoFiltro = 'todos';
 
-if (lista && document.getElementById('tituloLista')) {
+if (tbody) {
     const nombreTec = localStorage.getItem('tecnologoNombre');
     if (nombreTec) {
         const el = document.getElementById('nombreTecnologo');
@@ -177,7 +225,6 @@ if (lista && document.getElementById('tituloLista')) {
             'todos': '📋 Todas las Solicitudes',
             'pendiente': '⏳ Solicitudes Pendientes',
             'en_camino': '🚶 Solicitudes En Camino',
-            'atendiendo': '🔬 Solicitudes Atendiendo',
             'rechazado': '❌ Solicitudes No Atendidas',
             'finalizado': '✅ Solicitudes Atendidas'
         };
@@ -186,59 +233,54 @@ if (lista && document.getElementById('tituloLista')) {
         cargarSolicitudes();
     };
     
-    function crearCardSolicitud(sol) {
+    function crearFilaSolicitud(sol) {
         const id = sol.id;
         const data = sol.data;
         
+        const fechaHora = formatearFechaHora(data.timestamps?.creado);
         const tiempo = tiempoTranscurrido(data.timestamps?.creado);
         const alerta = colorAlerta(data.timestamps?.creado, data.estado);
         
-        let botones = '';
-        let estadoLabel = '';
+        let acciones = '';
         
         if (data.estado === 'pendiente') {
-            estadoLabel = '⏳ Pendiente';
-            botones = `
-                <button onclick="cambiarEstado('${id}', 'en_camino')" class="btn-camino">🚶 En camino</button>
-                <button onclick="mostrarRechazo('${id}')" class="btn-rechazar">❌ No atender</button>
+            acciones = `
+                <button onclick="cambiarEstado('${id}', 'en_camino')" class="btn-accion btn-camino">🚶</button>
+                <button onclick="mostrarRechazo('${id}')" class="btn-accion btn-rechazar">❌</button>
             `;
         } else if (data.estado === 'en_camino') {
-            estadoLabel = '🚶 En camino';
-            botones = `<button onclick="cambiarEstado('${id}', 'atendiendo')" class="btn-atendiendo">🔬 Atendiendo</button>`;
-        } else if (data.estado === 'atendiendo') {
-            estadoLabel = '🔬 Atendiendo';
-            botones = `<button onclick="cambiarEstado('${id}', 'finalizado')" class="btn-finalizar">✅ Finalizar</button>`;
+            acciones = `
+                <button onclick="cambiarEstado('${id}', 'finalizado')" class="btn-accion btn-finalizar">✅</button>
+            `;
         } else if (data.estado === 'rechazado') {
-            estadoLabel = '❌ No atendido';
-            botones = `<span class="rechazado-info">Motivo: ${data.motivoRechazo || 'No especificado'}</span>`;
+            acciones = `
+                <button onclick="revertirRechazo('${id}')" class="btn-accion btn-revertir">↩️ Revertir</button>
+                <span class="motivo-rechazo">${data.motivoRechazo || ''}</span>
+            `;
         } else if (data.estado === 'finalizado') {
-            estadoLabel = '✅ Atendido';
-            botones = `<span class="completado">✅ Completado</span>`;
+            acciones = `<span class="completado">✅</span>`;
         }
         
-        const urgenciaClass = data.urgencia === 'emergencia' ? 'tag-emergencia' : 
-                              data.urgencia === 'urgente' ? 'tag-urgente' : 'tag-normal';
+        const estadosLabels = {
+            'pendiente': '⏳ Pendiente',
+            'en_camino': '🚶 En camino',
+            'rechazado': '❌ No atendido',
+            'finalizado': '✅ Atendido'
+        };
         
         return `
-            <div class="solicitud-card ${alerta}" id="card-${id}">
-                <div class="solicitud-header">
-                    <span class="estado">${estadoLabel}</span>
-                    <span class="tiempo">⏱️ ${tiempo}</span>
-                </div>
-                <div class="solicitud-body">
-                    <p><strong>🆔 DNI:</strong> ${data.dniPaciente || '-'}</p>
-                    <p><strong>👤 Paciente:</strong> ${data.nombrePaciente || '-'}</p>
-                    <p><strong>🙋 Solicita:</strong> ${data.solicitadoPor}</p>
-                    ${data.notas ? `<p><strong>📝 Notas:</strong> ${data.notas}</p>` : ''}
-                    ${data.tecnologoAsignado ? `<p><strong>🔬 Tecnólogo:</strong> ${data.tecnologoAsignado}</p>` : ''}
-                    ${data.fotoSolicitud ? `<a href="${data.fotoSolicitud}" target="_blank" class="btn-foto">📷 Ver solicitud</a>` : ''}
-                </div>
-                ${data.estado !== 'finalizado' && data.estado !== 'rechazado' ? `
-                <div class="solicitud-actions">
-                    ${botones}
-                </div>
-                ` : `<div class="solicitud-actions">${botones}</div>`}
-            </div>
+            <tr class="${alerta}" id="fila-${id}">
+                <td>${fechaHora}</td>
+                <td><strong>${tiempo}</strong></td>
+                <td>${data.dniPaciente || '-'}</td>
+                <td>${data.nombrePaciente || '-'}</td>
+                <td>${data.solicitadoPor}</td>
+                <td>${data.notas || '-'}</td>
+                <td>${data.fotoSolicitud ? `<a href="${data.fotoSolicitud}" target="_blank">📷</a>` : '-'}</td>
+                <td>${data.tecnologoAsignado || '-'}</td>
+                <td>${estadosLabels[data.estado]}</td>
+                <td class="acciones">${acciones}</td>
+            </tr>
         `;
     }
     
@@ -251,7 +293,6 @@ if (lista && document.getElementById('tituloLista')) {
             updates['timestamps.enCamino'] = now;
             updates['tecnologoAsignado'] = tecnologo;
         }
-        if (nuevoEstado === 'atendiendo') updates['timestamps.atendiendo'] = now;
         if (nuevoEstado === 'finalizado') updates['timestamps.finalizado'] = now;
         
         await updateDoc(doc(db, 'solicitudes', id), updates);
@@ -265,6 +306,16 @@ if (lista && document.getElementById('tituloLista')) {
                 'timestamps.rechazado': serverTimestamp(),
                 motivoRechazo: motivo,
                 tecnologoAsignado: localStorage.getItem('tecnologoNombre') || 'Tecnólogo'
+            });
+        }
+    };
+    
+    window.revertirRechazo = async function(id) {
+        if (confirm('¿Revertir esta solicitud a estado Pendiente?')) {
+            await updateDoc(doc(db, 'solicitudes', id), {
+                estado: 'pendiente',
+                motivoRechazo: null,
+                tecnologoAsignado: null
             });
         }
     };
@@ -287,21 +338,20 @@ if (lista && document.getElementById('tituloLista')) {
         
         unsubscribe = onSnapshot(q, (snapshot) => {
             let html = '';
-            let counts = { pendiente: 0, en_camino: 0, atendiendo: 0, rechazado: 0, finalizado: 0 };
+            let counts = { pendiente: 0, en_camino: 0, rechazado: 0, finalizado: 0 };
             
             snapshot.forEach((doc) => {
                 const data = doc.data();
                 if (counts[data.estado] !== undefined) counts[data.estado]++;
-                html += crearCardSolicitud({ id: doc.id, data });
+                html += crearFilaSolicitud({ id: doc.id, data });
             });
             
             document.getElementById('countPendiente').textContent = counts.pendiente;
             document.getElementById('countEnCamino').textContent = counts.en_camino;
-            document.getElementById('countAtendiendo').textContent = counts.atendiendo;
             document.getElementById('countRechazado').textContent = counts.rechazado;
             document.getElementById('countFinalizado').textContent = counts.finalizado;
             
-            lista.innerHTML = html || '<p class="empty">No hay solicitudes en esta categoría</p>';
+            tbody.innerHTML = html || '<tr><td colspan="10" class="empty">No hay solicitudes en esta categoría</td></tr>';
         });
     }
     
@@ -312,7 +362,6 @@ if (lista && document.getElementById('tituloLista')) {
 
 const formCrearTecnologo = document.getElementById('formCrearTecnologo');
 if (formCrearTecnologo) {
-    // Verificar que sea admin
     if (localStorage.getItem('rol') !== 'admin') {
         alert('Acceso denegado');
         window.location.href = 'index.html';
@@ -342,7 +391,6 @@ if (formCrearTecnologo) {
         }
     });
     
-    // Cargar lista de tecnólogos
     function cargarTecnologos() {
         const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
         onSnapshot(q, (snapshot) => {
