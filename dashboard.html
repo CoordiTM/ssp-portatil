@@ -22,9 +22,6 @@
                 <button onclick="filtrarEstado('en_camino')" class="btn-filtro btn-camino" id="btn-camino">
                     🚶 En camino <span class="badge" id="countEnCamino">0</span>
                 </button>
-                <button onclick="filtrarEstado('atendiendo')" class="btn-filtro btn-atendiendo" id="btn-atendiendo">
-                    🔬 Atendiendo <span class="badge" id="countAtendiendo">0</span>
-                </button>
                 <button onclick="filtrarEstado('rechazado')" class="btn-filtro btn-rechazado" id="btn-rechazado">
                     ❌ No atendido <span class="badge" id="countRechazado">0</span>
                 </button>
@@ -39,8 +36,26 @@
 
         <section class="card">
             <h2 id="tituloLista">📋 Todas las Solicitudes</h2>
-            <div id="listaSolicitudes" class="lista">
-                <p class="empty">Cargando...</p>
+            <div class="tabla-container">
+                <table class="tabla-solicitudes" id="tablaSolicitudes">
+                    <thead>
+                        <tr>
+                            <th>🕐 Fecha/Hora</th>
+                            <th>⏱️ Tiempo</th>
+                            <th>🆔 DNI</th>
+                            <th>👤 Paciente</th>
+                            <th>🙋 Solicita</th>
+                            <th>📝 Notas</th>
+                            <th>📷 Foto</th>
+                            <th>🔬 Tecnólogo</th>
+                            <th>⚡ Estado</th>
+                            <th>🎮 Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tbodySolicitudes">
+                        <tr><td colspan="10" class="empty">Cargando...</td></tr>
+                    </tbody>
+                </table>
             </div>
         </section>
 
