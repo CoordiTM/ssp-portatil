@@ -49,8 +49,8 @@ function tiempoTranscurrido(timestamp) {
 function colorAlerta(timestamp, estado) {
     if (!timestamp || estado === 'finalizado' || estado === 'rechazado') return '';
     const diff = Math.floor((new Date() - timestamp.toDate()) / 1000);
-    if (diff > 1800) return 'alerta-roja';
-    if (diff > 900) return 'alerta-amarilla';
+    if (diff > 3600) return 'alerta-roja';
+    if (diff > 1800) return 'alerta-amarilla';
     return '';
 }
 
