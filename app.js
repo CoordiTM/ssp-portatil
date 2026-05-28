@@ -63,6 +63,12 @@ function formatearFechaHora(timestamp) {
     });
 }
 
+function formatearFechaInput(timestamp) {
+    if (!timestamp) return '';
+    const fecha = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    return fecha.toISOString().split('T')[0];
+}
+
 // ==================== PÁGINA: REGISTRAR ====================
 
 const formSolicitud = document.getElementById('formSolicitud');
@@ -93,7 +99,8 @@ if (formSolicitud) {
                     rechazado: null
                 },
                 tecnologoAsignado: null,
-                motivoRechazo: null
+                motivoRechazo: null,
+                notasContingencia: null
             });
             
             formSolicitud.reset();
@@ -149,6 +156,7 @@ if (formConsulta) {
                         <p><strong>⚡ Estado:</strong> <span class="estado-${data.estado}">${estadosLabels[data.estado]}</span></p>
                         ${data.tecnologoAsignado ? `<p><strong>🔬 Tecnólogo:</strong> ${data.tecnologoAsignado}</p>` : ''}
                         ${data.motivoRechazo ? `<p><strong>❌ Motivo:</strong> ${data.motivoRechazo}</p>` : ''}
+                        ${data.notasContingencia ? `<p><strong>📝 Notas técnicas:</strong> ${data.notasContingencia}</p>` : ''}
                     </div>
                 `;
             });
@@ -268,7 +276,13 @@ if (listaCards) {
             `;
         } else if (data.estado === 'en_camino') {
             estadoBadge = '<span class="estado-badge camino">🚶 EN CAMINO</span>';
-            acciones = `<button onclick="cambiarEstado('${id}', 'finalizado')" class="btn-action finalizar">✅ FINALIZAR</button>`;
+            acciones = `
+                <button onclick="mostrarNotasContingencia('${id}')" class="btn-action notas">📝 NOTAS</button>
+                <button onclick="cambiarEstado('${id}', 'finalizado')" class="btn-action finalizar">✅ FINALIZAR</button>
+            `;
+            if (data.notasContingencia) {
+                acciones += `<p class="notas-contingencia">📝 ${data.notasContingencia}</p>`;
+            }
         } else if (data.estado === 'rechazado') {
             estadoBadge = '<span class="estado-badge rechazado">❌ NO ATENDIDO</span>';
             acciones = `
@@ -278,6 +292,9 @@ if (listaCards) {
         } else if (data.estado === 'finalizado') {
             estadoBadge = '<span class="estado-badge finalizado">✅ ATENDIDO</span>';
             acciones = `<span class="completado">Completado</span>`;
+            if (data.notasContingencia) {
+                acciones += `<p class="notas-contingencia">📝 ${data.notasContingencia}</p>`;
+            }
         }
         
         return `
@@ -329,6 +346,19 @@ if (listaCards) {
         } catch (error) {
             console.error('Error:', error);
             alert('❌ Error: ' + error.message);
+        }
+    };
+    
+    window.mostrarNotasContingencia = async function(id) {
+        const notas = prompt('Ingrese notas de contingencia / observaciones técnicas:');
+        if (notas && notas.trim() !== '') {
+            try {
+                await updateDoc(doc(db, 'solicitudes', id), {
+                    notasContingencia: notas
+                });
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
         }
     };
     
@@ -467,11 +497,13 @@ if (formCrearTecnologo) {
     cargarTecnologos();
 }
 
-// ==================== REPORTES ====================
+// ==================== REPORTES CON EXPORTAR A EXCEL ====================
 
 window.generarReporte = async function() {
     const desde = document.getElementById('fechaDesde').value;
     const hasta = document.getElementById('fechaHasta').value;
+    const tipoReporte = document.getElementById('tipoReporte')?.value || 'general';
+    const tecnologoFiltro = document.getElementById('tecnologoFiltro')?.value || '';
     const contenedor = document.getElementById('resultadoReporte');
     
     if (!desde || !hasta) {
@@ -485,6 +517,7 @@ window.generarReporte = async function() {
     const q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
     const snapshot = await getDocs(q);
     
+    let solicitudes = [];
     let total = 0, atendidos = 0, rechazados = 0, pendientes = 0;
     let tiemposAtencion = [];
     let porTecnologo = {};
@@ -494,17 +527,36 @@ window.generarReporte = async function() {
         const fechaCreado = d.timestamps?.creado?.toDate();
         
         if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta) {
+            // Filtro por tecnólogo si es individual
+            if (tipoReporte === 'individual' && tecnologoFiltro && d.tecnologoAsignado !== tecnologoFiltro) return;
+            
             total++;
+            
+            // Calcular tiempo de atención
+            let tiempoAtencion = '-';
+            if (d.timestamps.creado && d.timestamps.finalizado) {
+                const diff = (d.timestamps.finalizado.toDate() - d.timestamps.creado.toDate()) / 1000 / 60;
+                tiempoAtencion = diff.toFixed(1) + ' min';
+                tiemposAtencion.push(diff);
+            }
+            
+            solicitudes.push({
+                fechaHora: formatearFechaHora(d.timestamps?.creado),
+                dni: d.dniPaciente,
+                paciente: d.nombrePaciente,
+                solicitadoPor: d.solicitadoPor,
+                estado: d.estado,
+                tecnologo: d.tecnologoAsignado || 'Sin asignar',
+                tiempoAtencion: tiempoAtencion,
+                notas: d.notas || '',
+                notasContingencia: d.notasContingencia || '',
+                motivoRechazo: d.motivoRechazo || ''
+            });
             
             if (d.estado === 'finalizado') {
                 atendidos++;
                 const tec = d.tecnologoAsignado || 'Sin asignar';
                 porTecnologo[tec] = (porTecnologo[tec] || 0) + 1;
-                
-                if (d.timestamps.creado && d.timestamps.finalizado) {
-                    const diff = (d.timestamps.finalizado.toDate() - d.timestamps.creado.toDate()) / 1000 / 60;
-                    tiemposAtencion.push(diff);
-                }
             } else if (d.estado === 'rechazado') {
                 rechazados++;
             } else {
@@ -517,14 +569,52 @@ window.generarReporte = async function() {
         ? (tiemposAtencion.reduce((a,b) => a+b, 0) / tiemposAtencion.length).toFixed(1) 
         : 0;
     
+    // Generar HTML del reporte
     let htmlTec = '';
     for (const [tec, cant] of Object.entries(porTecnologo)) {
         htmlTec += `<li>${tec}: ${cant} atenciones</li>`;
     }
     
+    // Tabla detallada
+    let tablaHTML = `
+        <table class="tabla-reporte" id="tablaReporte">
+            <thead>
+                <tr>
+                    <th>Fecha/Hora</th>
+                    <th>DNI</th>
+                    <th>Paciente</th>
+                    <th>Solicita</th>
+                    <th>Estado</th>
+                    <th>Tecnólogo</th>
+                    <th>Tiempo Atención</th>
+                    <th>Notas</th>
+                    <th>Notas Técnicas</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    solicitudes.forEach(s => {
+        tablaHTML += `
+            <tr>
+                <td>${s.fechaHora}</td>
+                <td>${s.dni}</td>
+                <td>${s.paciente}</td>
+                <td>${s.solicitadoPor}</td>
+                <td>${s.estado}</td>
+                <td>${s.tecnologo}</td>
+                <td>${s.tiempoAtencion}</td>
+                <td>${s.notas}</td>
+                <td>${s.notasContingencia}</td>
+            </tr>
+        `;
+    });
+    
+    tablaHTML += '</tbody></table>';
+    
     contenedor.innerHTML = `
         <div class="card">
-            <h3>📊 Reporte del ${desde} al ${hasta}</h3>
+            <h3>📊 Reporte ${tipoReporte === 'individual' ? 'Individual' : 'General'} del ${desde} al ${hasta}</h3>
             <div class="stats-reporte">
                 <div class="stat-box"><strong>Total:</strong> ${total}</div>
                 <div class="stat-box"><strong>Atendidas:</strong> ${atendidos}</div>
@@ -532,8 +622,42 @@ window.generarReporte = async function() {
                 <div class="stat-box"><strong>Pendientes:</strong> ${pendientes}</div>
                 <div class="stat-box"><strong>Tiempo promedio:</strong> ${tiempoPromedio} min</div>
             </div>
-            <h4>👥 Por tecnólogo:</h4>
-            <ul>${htmlTec || '<li>Sin datos</li>'}</ul>
+            ${tipoReporte === 'general' ? `<h4>👥 Por tecnólogo:</h4><ul>${htmlTec || '<li>Sin datos</li>'}</ul>` : ''}
+            
+            <h4>📋 Detalle:</h4>
+            ${tablaHTML}
+            
+            <button onclick="exportarExcel()" class="btn-primary" style="margin-top:15px;">📥 Exportar a Excel</button>
         </div>
     `;
+    
+    // Guardar datos para exportar
+    window.datosReporte = solicitudes;
+};
+
+window.exportarExcel = function() {
+    if (!window.datosReporte || window.datosReporte.length === 0) {
+        alert('No hay datos para exportar');
+        return;
+    }
+    
+    // Crear CSV
+    let csv = 'Fecha/Hora,DNI,Paciente,Solicita,Estado,Tecnologo,Tiempo Atencion,Notas,Notas Tecnicas\n';
+    
+    window.datosReporte.forEach(s => {
+        csv += `"${s.fechaHora}","${s.dni}","${s.paciente}","${s.solicitadoPor}","${s.estado}","${s.tecnologo}","${s.tiempoAtencion}","${s.notas}","${s.notasContingencia}"\n`;
+    });
+    
+    // Descargar
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', `reporte_ssp_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 };
