@@ -78,12 +78,49 @@
     </div>
 
     <script type="module" src="app.js"></script>
-    <script>
+    <script type="module">
+        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyAT7b1rR6rSxaf2dJzLrDjluOxYBQAd00g",
+            authDomain: "ssp-rx-portatil.firebaseapp.com",
+            projectId: "ssp-rx-portatil",
+            storageBucket: "ssp-rx-portatil.firebasestorage.app",
+            messagingSenderId: "592475172989",
+            appId: "1:592475172989:web:7dfb1321ed48231f0a8114"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        // Cargar tecnólogos en el select
+        function cargarTecnologosSelect() {
+            const select = document.getElementById('tecnologoFiltro');
+            const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
+            
+            onSnapshot(q, (snapshot) => {
+                // Mantener la opción "Seleccionar..."
+                select.innerHTML = '<option value="">Seleccionar...</option>';
+                
+                snapshot.forEach((docSnap) => {
+                    const t = docSnap.data();
+                    const option = document.createElement('option');
+                    option.value = t.nombre;
+                    option.textContent = `${t.nombre} (DNI: ${t.dni})`;
+                    select.appendChild(option);
+                });
+            });
+        }
+        
         // Mostrar/ocultar filtro de tecnólogo
-        document.getElementById('tipoReporte')?.addEventListener('change', function() {
+        document.getElementById('tipoReporte').addEventListener('change', function() {
             document.getElementById('grupoTecnologo').style.display = 
                 this.value === 'individual' ? 'block' : 'none';
         });
+        
+        // Cargar tecnólogos al iniciar
+        cargarTecnologosSelect();
     </script>
 </body>
 </html>
