@@ -4,7 +4,6 @@ import {
     getFirestore, collection, addDoc, onSnapshot, 
     doc, updateDoc, query, orderBy, serverTimestamp, Timestamp, where, getDocs, deleteDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAT7b1rR6rSxaf2dJzLrDjluOxYBQAd00g",
@@ -15,17 +14,25 @@ const firebaseConfig = {
     appId: "1:592475172989:web:7dfb1321ed48231f0a8114"
 };
 
+const CLOUDINARY_CLOUD_NAME = "dugihbmyc";
+const CLOUDINARY_UPLOAD_PRESET = "ssp-portatil";
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const storage = getStorage(app);
 
 // ==================== UTILIDADES ====================
 
-async function subirFotoStorage(file) {
-    const nombreArchivo = `solicitudes/${Date.now()}_${file.name.replace(/\s/g, '_')}`;
-    const storageRef = ref(storage, nombreArchivo);
-    const snapshot = await uploadBytes(storageRef, file);
-    return await getDownloadURL(snapshot.ref);
+async function subirFotoCloudinary(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    
+    const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: 'POST', body: formData }
+    );
+    const data = await response.json();
+    return data.secure_url;
 }
 
 function tiempoTranscurrido(timestamp, horaProgramada) {
@@ -97,7 +104,7 @@ if (formSolicitud) {
         
         try {
             const file = document.getElementById('fotoSolicitud').files[0];
-            const fotoUrl = await subirFotoStorage(file);
+            const fotoUrl = await subirFotoCloudinary(file);
             const dni = document.getElementById('dniPaciente').value;
             
             const esProgramado = document.getElementById('esProgramado').value === 'si';
@@ -178,7 +185,6 @@ if (formConsulta) {
                 
                 let infoProgramado = '';
                 if (data.esProgramado && data.horaProgramada) {
-                    const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
                     infoProgramado = `<p><strong>⏰ Programado para:</strong> ${formatearFechaHora(data.horaProgramada)}</p>`;
                 }
                 
@@ -301,7 +307,6 @@ if (listaCards) {
         let acciones = '';
         let estadoBadge = '';
         
-        // Indicador de programado
         let indicadorProgramado = '';
         if (data.esProgramado && data.horaProgramada) {
             const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
@@ -311,7 +316,6 @@ if (listaCards) {
             indicadorProgramado = `<span class="badge-programado">⏰ Programado: ${horaProgStr}</span>`;
         }
         
-        // Historial de notas
         let historialNotasHTML = '';
         if (data.historialNotas && data.historialNotas.length > 0) {
             historialNotasHTML = '<div class="historial-notas"><h4>📝 Registro de eventos:</h4>';
