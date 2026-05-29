@@ -184,21 +184,70 @@ if (formConsulta) {
                 };
                 
                 let infoProgramado = '';
-                if (data.esProgramado && data.horaProgramada) {
-                    infoProgramado = `<p><strong>⏰ Programado para:</strong> ${formatearFechaHora(data.horaProgramada)}</p>`;
-                }
-                
-                html += `
-                    <div class="card">
-                        <h3>📋 Solicitud - ${formatearFechaHora(data.timestamps?.creado)}</h3>
-                        <p><strong>👤 Paciente:</strong> ${data.nombrePaciente}</p>
-                        ${infoProgramado}
-                        <p><strong>⚡ Estado:</strong> <span class="estado-${data.estado}">${estadosLabels[data.estado]}</span></p>
-                        ${data.tecnologoAsignado ? `<p><strong>🔬 Tecnólogo:</strong> ${data.tecnologoAsignado}</p>` : ''}
-                        ${data.motivoRechazo ? `<p><strong>❌ Motivo:</strong> ${data.motivoRechazo}</p>` : ''}
-                    </div>
-                `;
-            });
+if (data.esProgramado && data.horaProgramada) {
+    const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+    infoProgramado = `<p><strong>⏰ Programado para:</strong> ${formatearFechaHora(data.horaProgramada)}</p>`;
+}
+
+// Historial de notas del tecnólogo
+let historialNotasHTML = '';
+if (data.historialNotas && data.historialNotas.length > 0) {
+    historialNotasHTML = `
+        <div class="historial-notas-consulta">
+            <h4>📝 Trazabilidad - Registro de eventos:</h4>
+    `;
+    data.historialNotas.forEach((nota) => {
+        historialNotasHTML += `
+            <div class="nota-item-consulta">
+                <div class="nota-header">
+                    <span class="nota-fecha">📅 ${nota.fecha}</span>
+                    <span class="nota-tecnologo">👤 ${nota.tecnologo}</span>
+                </div>
+                <p class="nota-texto">${nota.texto}</p>
+            </div>
+        `;
+    });
+    historialNotasHTML += '</div>';
+}
+
+// Trazabilidad de estados
+let trazabilidadEstados = '';
+const estadosTrazabilidad = [];
+if (data.timestamps?.creado) {
+    estadosTrazabilidad.push(`📋 Registrado: ${formatearFechaHora(data.timestamps.creado)}`);
+}
+if (data.timestamps?.enCamino) {
+    estadosTrazabilidad.push(`🚶 En camino: ${formatearFechaHora(data.timestamps.enCamino)}`);
+}
+if (data.timestamps?.finalizado) {
+    estadosTrazabilidad.push(`✅ Finalizado: ${formatearFechaHora(data.timestamps.finalizado)}`);
+}
+if (data.timestamps?.rechazado) {
+    estadosTrazabilidad.push(`❌ No atendido: ${formatearFechaHora(data.timestamps.rechazado)}`);
+}
+
+if (estadosTrazabilidad.length > 0) {
+    trazabilidadEstados = `
+        <div class="trazabilidad-estados">
+            <h4>📊 Trazabilidad de estados:</h4>
+            ${estadosTrazabilidad.map(e => `<p class="estado-line">${e}</p>`).join('')}
+        </div>
+    `;
+}
+
+html += `
+    <div class="card">
+        <h3>📋 Solicitud - ${formatearFechaHora(data.timestamps?.creado)}</h3>
+        <p><strong>👤 Paciente:</strong> ${data.nombrePaciente}</p>
+        ${infoProgramado}
+        <p><strong>⚡ Estado actual:</strong> <span class="estado-${data.estado}">${estadosLabels[data.estado]}</span></p>
+        ${data.tecnologoAsignado ? `<p><strong>🔬 Tecnólogo asignado:</strong> ${data.tecnologoAsignado}</p>` : ''}
+        ${data.motivoRechazo ? `<p><strong>❌ Motivo no atención:</strong> ${data.motivoRechazo}</p>` : ''}
+        
+        ${trazabilidadEstados}
+        ${historialNotasHTML}
+    </div>
+`;
             
             resultado.innerHTML = html;
             
