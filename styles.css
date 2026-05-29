@@ -550,3 +550,86 @@ body {
         min-width: 100%;
     }
 }
+/* Trazabilidad en consulta */
+.trazabilidad-estados {
+    margin-top: 15px;
+    padding: 12px;
+    background: #f0f7ff;
+    border-radius: 8px;
+    border-left: 3px solid #2e86ab;
+}
+
+.trazabilidad-estados h4 {
+    color: #1a5276;
+    font-size: 0.95rem;
+    margin-bottom: 8px;
+    margin-top: 0;
+}
+
+.estado-line {
+    font-size: 0.85rem;
+    color: #555;
+    margin: 4px 0;
+    padding: 4px 0;
+    border-bottom: 1px dashed #e0e0e0;
+}
+
+.estado-line:last-child {
+    border-bottom: none;
+    font-weight: 600;
+    color: #1a5276;
+}
+
+/* Historial de notas en consulta */
+.historial-notas-consulta {
+    margin-top: 15px;
+    padding: 12px;
+    background: #fff8f0;
+    border-radius: 8px;
+    border-left: 3px solid #f57c00;
+}
+
+.historial-notas-consulta h4 {
+    color: #e65100;
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+    margin-top: 0;
+}
+
+.nota-item-consulta {
+    background: white;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+    border-left: 2px solid #ff9800;
+}
+
+.nota-item-consulta:last-child {
+    margin-bottom: 0;
+}
+
+.nota-header {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.nota-fecha {
+    font-size: 0.8rem;
+    color: #666;
+    font-weight: 600;
+}
+
+.nota-tecnologo {
+    font-size: 0.8rem;
+    color: #2e86ab;
+}
+
+.nota-texto {
+    font-size: 0.9rem;
+    color: #333;
+    margin: 0;
+    line-height: 1.4;
+}
