@@ -88,6 +88,28 @@ body {
     color: #1a5276;
 }
 
+/* Botón del manual */
+.manual-card {
+    grid-column: 1 / -1;
+    background: linear-gradient(135deg, #ebf5fb 0%, #ffffff 100%);
+    border: 2px solid #2e86ab;
+}
+
+.manual-card:hover {
+    background: linear-gradient(135deg, #d4edfc 0%, #ffffff 100%);
+    border-color: #1a5276;
+    transform: translateY(-3px);
+}
+
+.manual-card h3 {
+    color: #1a5276;
+    font-size: 1.3rem;
+}
+
+.manual-card .icon {
+    font-size: 2.5rem;
+}
+
 /* Cards generales */
 .card {
     background: white;
@@ -261,6 +283,11 @@ body {
     animation: pulse 2s infinite;
 }
 
+.solicitud-card-v2.programado-futuro {
+    border-left-color: #9c27b0;
+    background: #f3e5f5;
+}
+
 .card-header {
     display: flex;
     justify-content: space-between;
@@ -283,6 +310,18 @@ body {
 .card-titulo .dni {
     font-size: 0.85rem;
     color: #666;
+}
+
+/* Badge de programado */
+.badge-programado {
+    display: inline-block;
+    background: #e3f2fd;
+    color: #1976d2;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-top: 5px;
 }
 
 .estado-badge {
@@ -368,19 +407,52 @@ body {
     margin-top: 5px;
 }
 
-.notas-contingencia {
-    width: 100%;
-    background: #fff3e0;
-    padding: 8px 12px;
-    border-radius: 6px;
-    font-size: 0.85rem;
-    color: #e65100;
-    margin-top: 5px;
-}
-
 .completado {
     color: #27ae60;
     font-weight: 600;
+}
+
+/* Historial de notas */
+.historial-notas {
+    width: 100%;
+    margin-top: 10px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 3px solid #2e86ab;
+}
+
+.historial-notas h4 {
+    color: #1a5276;
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+    margin-top: 0;
+}
+
+.nota-item {
+    padding: 8px;
+    margin-bottom: 6px;
+    background: white;
+    border-radius: 6px;
+    border-left: 2px solid #e0e0e0;
+}
+
+.nota-fecha {
+    font-size: 0.75rem;
+    color: #666;
+    font-weight: 600;
+}
+
+.nota-tecnologo {
+    font-size: 0.75rem;
+    color: #2e86ab;
+    margin-left: 10px;
+}
+
+.nota-texto {
+    font-size: 0.85rem;
+    color: #333;
+    margin: 4px 0 0 0;
 }
 
 /* Admin - Tecnólogos */
@@ -418,16 +490,6 @@ body {
     text-align: center;
 }
 
-.reporte-resultado ul {
-    margin-left: 20px;
-    margin-top: 10px;
-}
-
-.reporte-resultado li {
-    margin-bottom: 5px;
-}
-
-/* Tabla de reporte */
 .tabla-reporte {
     width: 100%;
     border-collapse: collapse;
@@ -487,43 +549,4 @@ body {
     .btn-action {
         min-width: 100%;
     }
-}
-/* Botón del manual - ocupa toda la fila */
-.manual-card {
-    grid-column: 1 / -1;
-    background: linear-gradient(135deg, #ebf5fb 0%, #ffffff 100%);
-    border: 2px solid #2e86ab;
-}
-
-.manual-card:hover {
-    background: linear-gradient(135deg, #d4edfc 0%, #ffffff 100%);
-    border-color: #1a5276;
-    transform: translateY(-3px);
-}
-
-.manual-card h3 {
-    color: #1a5276;
-    font-size: 1.3rem;
-}
-
-.manual-card .icon {
-    font-size: 2.5rem;
-}
-/* Admin - Estados badges */
-.estado-badge.pendiente { background: #fff3e0; color: #f57c00; }
-.estado-badge.en_camino { background: #e3f2fd; color: #1976d2; }
-.estado-badge.rechazado { background: #ffebee; color: #d32f2f; }
-.estado-badge.finalizado { background: #e8f5e9; color: #388e3c; }
-
-/* Admin - Botones de acción */
-.card-actions select {
-    background: white;
-    font-size: 0.85rem;
-}
-
-.card-actions .btn-action {
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    min-width: auto;
-    flex: 1;
 }
