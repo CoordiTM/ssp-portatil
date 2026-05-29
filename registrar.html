@@ -32,6 +32,21 @@
                     <label>Notas / Observaciones:</label>
                     <textarea id="notas" rows="3" placeholder="Indicaciones especiales, posición, etc."></textarea>
                 </div>
+                
+                <div class="form-group">
+                    <label>¿Es un estudio programado?</label>
+                    <select id="esProgramado" onchange="toggleHoraProgramada()">
+                        <option value="no">No - Solicitud inmediata</option>
+                        <option value="si">Sí - Estudio programado</option>
+                    </select>
+                </div>
+
+                <div class="form-group" id="grupoHoraProgramada" style="display: none;">
+                    <label>Hora programada del estudio:</label>
+                    <input type="datetime-local" id="horaProgramada">
+                    <small>📅 Selecciona fecha y hora exacta del estudio programado</small>
+                </div>
+                
                 <div class="form-group">
                     <label>Foto de la solicitud:</label>
                     <input type="file" id="fotoSolicitud" accept="image/*" capture="environment" required>
@@ -45,5 +60,12 @@
     </div>
 
     <script type="module" src="app.js"></script>
+    <script>
+        function toggleHoraProgramada() {
+            const esProgramado = document.getElementById('esProgramado').value;
+            const grupoHora = document.getElementById('grupoHoraProgramada');
+            grupoHora.style.display = esProgramado === 'si' ? 'block' : 'none';
+        }
+    </script>
 </body>
 </html>
