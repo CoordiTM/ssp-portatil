@@ -2,8 +2,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
     getFirestore, collection, addDoc, onSnapshot, 
-    doc, updateDoc, query, orderBy, serverTimestamp, where, getDocs, deleteDoc
+    doc, updateDoc, query, orderBy, serverTimestamp, Timestamp, where, getDocs, deleteDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyAT7b1rR6rSxaf2dJzLrDjluOxYBQAd00g",
@@ -14,31 +15,37 @@ const firebaseConfig = {
     appId: "1:592475172989:web:7dfb1321ed48231f0a8114"
 };
 
-const CLOUDINARY_CLOUD_NAME = "dugihbmyc";
-const CLOUDINARY_UPLOAD_PRESET = "ssp-portatil";
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
 // ==================== UTILIDADES ====================
 
-async function subirFotoCloudinary(file) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    
-    const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: 'POST', body: formData }
-    );
-    const data = await response.json();
-    return data.secure_url;
+async function subirFotoStorage(file) {
+    const nombreArchivo = `solicitudes/${Date.now()}_${file.name.replace(/\s/g, '_')}`;
+    const storageRef = ref(storage, nombreArchivo);
+    const snapshot = await uploadBytes(storageRef, file);
+    return await getDownloadURL(snapshot.ref);
 }
 
-function tiempoTranscurrido(timestamp) {
+function tiempoTranscurrido(timestamp, horaProgramada) {
     if (!timestamp) return '-';
+    
     const ahora = new Date();
-    const creado = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    let creado;
+    
+    if (horaProgramada) {
+        const fechaProgramada = horaProgramada.toDate ? horaProgramada.toDate() : new Date(horaProgramada);
+        if (fechaProgramada > ahora) {
+            const diffFuturo = Math.floor((fechaProgramada - ahora) / 1000);
+            if (diffFuturo < 3600) return `⏰ En ${Math.floor(diffFuturo/60)}m`;
+            return `⏰ En ${Math.floor(diffFuturo/3600)}h ${Math.floor((diffFuturo%3600)/60)}m`;
+        }
+        creado = fechaProgramada;
+    } else {
+        creado = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+    }
+    
     const diff = Math.floor((ahora - creado) / 1000);
     
     if (diff < 60) return `${diff}s`;
@@ -46,9 +53,23 @@ function tiempoTranscurrido(timestamp) {
     return `${Math.floor(diff/3600)}h ${Math.floor((diff%3600)/60)}m`;
 }
 
-function colorAlerta(timestamp, estado) {
-    if (!timestamp || estado === 'finalizado' || estado === 'rechazado') return '';
-    const diff = Math.floor((new Date() - timestamp.toDate()) / 1000);
+function colorAlerta(data) {
+    if (!data.timestamps?.creado || data.estado === 'finalizado' || data.estado === 'rechazado') return '';
+    
+    const ahora = new Date();
+    let inicio;
+    
+    if (data.horaProgramada) {
+        const fechaProgramada = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+        inicio = fechaProgramada;
+    } else {
+        inicio = data.timestamps.creado.toDate();
+    }
+    
+    if (data.esProgramado && inicio > ahora) return 'programado-futuro';
+    
+    const diff = Math.floor((ahora - inicio) / 1000);
+    
     if (diff > 3600) return 'alerta-roja';
     if (diff > 900) return 'alerta-amarilla';
     return '';
@@ -76,8 +97,17 @@ if (formSolicitud) {
         
         try {
             const file = document.getElementById('fotoSolicitud').files[0];
-            const fotoUrl = await subirFotoCloudinary(file);
+            const fotoUrl = await subirFotoStorage(file);
             const dni = document.getElementById('dniPaciente').value;
+            
+            const esProgramado = document.getElementById('esProgramado').value === 'si';
+            const horaProgramadaInput = document.getElementById('horaProgramada').value;
+            
+            let horaProgramadaTimestamp = null;
+            if (esProgramado && horaProgramadaInput) {
+                const fechaProgramada = new Date(horaProgramadaInput);
+                horaProgramadaTimestamp = Timestamp.fromDate(fechaProgramada);
+            }
             
             await addDoc(collection(db, 'solicitudes'), {
                 dniPaciente: dni,
@@ -86,6 +116,8 @@ if (formSolicitud) {
                 notas: document.getElementById('notas').value || '',
                 fotoSolicitud: fotoUrl,
                 estado: 'pendiente',
+                esProgramado: esProgramado,
+                horaProgramada: horaProgramadaTimestamp,
                 timestamps: {
                     creado: serverTimestamp(),
                     enCamino: null,
@@ -94,10 +126,11 @@ if (formSolicitud) {
                 },
                 tecnologoAsignado: null,
                 motivoRechazo: null,
-                notasContingencia: null
+                historialNotas: []
             });
             
             formSolicitud.reset();
+            document.getElementById('grupoHoraProgramada').style.display = 'none';
             alert(`✅ Solicitud registrada correctamente\n\n🆔 CÓDIGO DE SEGUIMIENTO: ${dni}\n\nGuarde este DNI para consultar el estado.`);
             
         } catch (error) {
@@ -143,14 +176,20 @@ if (formConsulta) {
                     'finalizado': '✅ Atendido'
                 };
                 
+                let infoProgramado = '';
+                if (data.esProgramado && data.horaProgramada) {
+                    const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+                    infoProgramado = `<p><strong>⏰ Programado para:</strong> ${formatearFechaHora(data.horaProgramada)}</p>`;
+                }
+                
                 html += `
                     <div class="card">
                         <h3>📋 Solicitud - ${formatearFechaHora(data.timestamps?.creado)}</h3>
                         <p><strong>👤 Paciente:</strong> ${data.nombrePaciente}</p>
+                        ${infoProgramado}
                         <p><strong>⚡ Estado:</strong> <span class="estado-${data.estado}">${estadosLabels[data.estado]}</span></p>
                         ${data.tecnologoAsignado ? `<p><strong>🔬 Tecnólogo:</strong> ${data.tecnologoAsignado}</p>` : ''}
                         ${data.motivoRechazo ? `<p><strong>❌ Motivo:</strong> ${data.motivoRechazo}</p>` : ''}
-                        ${data.notasContingencia ? `<p><strong>📝 Notas técnicas:</strong> ${data.notasContingencia}</p>` : ''}
                     </div>
                 `;
             });
@@ -208,7 +247,7 @@ if (formLogin) {
     });
 }
 
-// ==================== PÁGINA: DASHBOARD (CARDS) ====================
+// ==================== PÁGINA: DASHBOARD ====================
 
 const listaCards = document.getElementById('listaSolicitudes');
 let estadoFiltro = 'todos';
@@ -256,11 +295,37 @@ if (listaCards) {
         const data = sol.data;
         
         const fechaHora = formatearFechaHora(data.timestamps?.creado);
-        const tiempo = tiempoTranscurrido(data.timestamps?.creado);
-        const alerta = colorAlerta(data.timestamps?.creado, data.estado);
+        const tiempo = tiempoTranscurrido(data.timestamps?.creado, data.horaProgramada);
+        const alerta = colorAlerta(data);
         
         let acciones = '';
         let estadoBadge = '';
+        
+        // Indicador de programado
+        let indicadorProgramado = '';
+        if (data.esProgramado && data.horaProgramada) {
+            const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+            const horaProgStr = horaProg.toLocaleString('es-PE', {
+                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+            });
+            indicadorProgramado = `<span class="badge-programado">⏰ Programado: ${horaProgStr}</span>`;
+        }
+        
+        // Historial de notas
+        let historialNotasHTML = '';
+        if (data.historialNotas && data.historialNotas.length > 0) {
+            historialNotasHTML = '<div class="historial-notas"><h4>📝 Registro de eventos:</h4>';
+            data.historialNotas.forEach((nota) => {
+                historialNotasHTML += `
+                    <div class="nota-item">
+                        <span class="nota-fecha">${nota.fecha}</span>
+                        <span class="nota-tecnologo">👤 ${nota.tecnologo}</span>
+                        <p class="nota-texto">${nota.texto}</p>
+                    </div>
+                `;
+            });
+            historialNotasHTML += '</div>';
+        }
         
         if (data.estado === 'pendiente') {
             estadoBadge = '<span class="estado-badge pendiente">⏳ PENDIENTE</span>';
@@ -275,9 +340,6 @@ if (listaCards) {
                 <button onclick="cambiarEstado('${id}', 'finalizado')" class="btn-action finalizar">✅ FINALIZAR</button>
                 <button onclick="mostrarRechazo('${id}')" class="btn-action rechazar">❌ NO ATENDER</button>
             `;
-            if (data.notasContingencia) {
-                acciones += `<p class="notas-contingencia">📝 ${data.notasContingencia}</p>`;
-            }
         } else if (data.estado === 'rechazado') {
             estadoBadge = '<span class="estado-badge rechazado">❌ NO ATENDIDO</span>';
             acciones = `
@@ -287,9 +349,6 @@ if (listaCards) {
         } else if (data.estado === 'finalizado') {
             estadoBadge = '<span class="estado-badge finalizado">✅ ATENDIDO</span>';
             acciones = `<span class="completado">Completado</span>`;
-            if (data.notasContingencia) {
-                acciones += `<p class="notas-contingencia">📝 ${data.notasContingencia}</p>`;
-            }
         }
         
         return `
@@ -298,6 +357,7 @@ if (listaCards) {
                     <div class="card-titulo">
                         <strong>${data.nombrePaciente || '-'}</strong>
                         <span class="dni">DNI: ${data.dniPaciente || '-'}</span>
+                        ${indicadorProgramado}
                     </div>
                     ${estadoBadge}
                 </div>
@@ -320,6 +380,7 @@ if (listaCards) {
                 
                 <div class="card-actions">
                     ${acciones}
+                    ${historialNotasHTML}
                 </div>
             </div>
         `;
@@ -345,12 +406,29 @@ if (listaCards) {
     };
     
     window.mostrarNotasContingencia = async function(id) {
-        const notas = prompt('Ingrese notas de contingencia / observaciones técnicas:');
+        const notas = prompt('Ingrese nota de contingencia / observación:');
         if (notas && notas.trim() !== '') {
             try {
-                await updateDoc(doc(db, 'solicitudes', id), {
-                    notasContingencia: notas
+                const docRef = doc(db, 'solicitudes', id);
+                const docSnap = await getDoc(docRef);
+                const data = docSnap.data();
+                
+                const nuevaNota = {
+                    fecha: new Date().toLocaleString('es-PE', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    }),
+                    texto: notas.trim(),
+                    tecnologo: localStorage.getItem('tecnologoNombre') || 'Tecnólogo'
+                };
+                
+                const historialActual = data.historialNotas || [];
+                historialActual.push(nuevaNota);
+                
+                await updateDoc(docRef, {
+                    historialNotas: historialActual
                 });
+                
             } catch (error) {
                 alert('❌ Error: ' + error.message);
             }
@@ -542,7 +620,7 @@ window.generarReporte = async function() {
                 tecnologo: d.tecnologoAsignado || 'Sin asignar',
                 tiempoAtencion: tiempoAtencion,
                 notas: d.notas || '',
-                notasContingencia: d.notasContingencia || '',
+                historialNotas: d.historialNotas || [],
                 motivoRechazo: d.motivoRechazo || ''
             });
             
@@ -579,7 +657,6 @@ window.generarReporte = async function() {
                     <th>Tecnólogo</th>
                     <th>Tiempo Atención</th>
                     <th>Notas</th>
-                    <th>Notas Técnicas</th>
                 </tr>
             </thead>
             <tbody>
@@ -596,7 +673,6 @@ window.generarReporte = async function() {
                 <td>${s.tecnologo}</td>
                 <td>${s.tiempoAtencion}</td>
                 <td>${s.notas}</td>
-                <td>${s.notasContingencia}</td>
             </tr>
         `;
     });
@@ -631,10 +707,10 @@ window.exportarExcel = function() {
         return;
     }
     
-    let csv = 'Fecha/Hora,DNI,Paciente,Solicita,Estado,Tecnologo,Tiempo Atencion,Notas,Notas Tecnicas\n';
+    let csv = 'Fecha/Hora,DNI,Paciente,Solicita,Estado,Tecnologo,Tiempo Atencion,Notas\n';
     
     window.datosReporte.forEach(s => {
-        csv += `"${s.fechaHora}","${s.dni}","${s.paciente}","${s.solicitadoPor}","${s.estado}","${s.tecnologo}","${s.tiempoAtencion}","${s.notas}","${s.notasContingencia}"\n`;
+        csv += `"${s.fechaHora}","${s.dni}","${s.paciente}","${s.solicitadoPor}","${s.estado}","${s.tecnologo}","${s.tiempoAtencion}","${s.notas}"\n`;
     });
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
