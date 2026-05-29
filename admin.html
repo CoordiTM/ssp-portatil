@@ -13,7 +13,6 @@
             <h2>Panel de Administración</h2>
         </header>
 
-        <!-- Crear Tecnólogo -->
         <section class="card">
             <h2>👤 Crear Nuevo Tecnólogo</h2>
             <form id="formCrearTecnologo">
@@ -33,7 +32,6 @@
             </form>
         </section>
 
-        <!-- Lista de tecnólogos -->
         <section class="card">
             <h2>👥 Tecnólogos Registrados</h2>
             <div id="listaTecnologos" class="lista">
@@ -41,32 +39,6 @@
             </div>
         </section>
 
-        <!-- Gestión de Solicitudes -->
-        <section class="card">
-            <h2>📋 Gestión de Solicitudes</h2>
-            <p style="color:#666; font-size:0.9rem; margin-bottom:15px;">
-                Aquí puedes eliminar registros de prueba, corregir estados, o editar datos.
-            </p>
-            
-            <div class="filtro-fecha">
-                <label>Filtrar por fecha:</label>
-                <input type="date" id="fechaFiltroAdmin">
-            </div>
-            
-            <div class="filtro-botones">
-                <button onclick="filtrarEstadoAdmin('todos')" class="btn-filtro btn-todos active" id="btn-admin-todos">📋 Todas</button>
-                <button onclick="filtrarEstadoAdmin('pendiente')" class="btn-filtro btn-pendiente" id="btn-admin-pendiente">⏳ Pendientes</button>
-                <button onclick="filtrarEstadoAdmin('en_camino')" class="btn-filtro btn-camino" id="btn-admin-camino">🚶 En camino</button>
-                <button onclick="filtrarEstadoAdmin('rechazado')" class="btn-filtro btn-rechazado" id="btn-admin-rechazado">❌ No atendidas</button>
-                <button onclick="filtrarEstadoAdmin('finalizado')" class="btn-filtro btn-finalizado" id="btn-admin-finalizado">✅ Atendidas</button>
-            </div>
-            
-            <div id="listaSolicitudesAdmin" class="lista-cards" style="margin-top:15px;">
-                <p class="empty">Cargando...</p>
-            </div>
-        </section>
-
-        <!-- Reportes -->
         <section class="card">
             <h2>📈 Reportes</h2>
             
@@ -104,7 +76,7 @@
 
     <script type="module" src="app.js"></script>
     <script type="module">
-        import { getFirestore, collection, query, orderBy, onSnapshot, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         
         const firebaseConfig = {
@@ -119,7 +91,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // Cargar tecnólogos en el select de reportes
         function cargarTecnologosSelect() {
             const select = document.getElementById('tecnologoFiltro');
             const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
@@ -136,7 +107,6 @@
             });
         }
         
-        // Mostrar/ocultar filtro de tecnólogo
         document.getElementById('tipoReporte').addEventListener('change', function() {
             document.getElementById('grupoTecnologo').style.display = 
                 this.value === 'individual' ? 'block' : 'none';
