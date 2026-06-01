@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+
+# ==================== 2. registrar.html ====================
+registrar_html = '''<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -61,6 +63,10 @@
         </section>
 
         <a href="index.html" class="btn-volver">← Volver al inicio</a>
+        
+        <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
+            <p>© 2026 HNASS - Todos los derechos reservados</p>
+        </footer>
     </div>
 
     <script type="module" src="app.js"></script>
@@ -72,4 +78,9 @@
         }
     </script>
 </body>
-</html>
+</html>'''
+
+with open(f"{output_dir}/registrar.html", "w", encoding="utf-8") as f:
+    f.write(registrar_html)
+
+print("✅ registrar.html generado")
