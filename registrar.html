@@ -17,22 +17,26 @@
             <h2>📝 Nueva Solicitud</h2>
             <form id="formSolicitud">
                 <div class="form-group">
-                    <label>DNI del paciente:</label>
+                    <label>DNI del paciente: *</label>
                     <input type="text" id="dniPaciente" placeholder="Ej: 12345678" maxlength="8" required>
                 </div>
                 <div class="form-group">
                     <label>Nombre y apellido del paciente:</label>
-                    <input type="text" id="nombrePaciente" placeholder="Nombre completo" required>
+                    <input type="text" id="nombrePaciente" placeholder="Nombre completo">
+                </div>
+                <div class="form-group">
+                    <label>Servicio que solicita: *</label>
+                    <input type="text" id="servicio" placeholder="Ej: Medicina, Cirugía, UCI, Emergencia" required>
                 </div>
                 <div class="form-group">
                     <label>Personal de salud que solicita:</label>
-                    <input type="text" id="solicitadoPor" placeholder="Nombre del personal de salud" required>
+                    <input type="text" id="solicitadoPor" placeholder="Nombre del personal de salud">
                 </div>
                 <div class="form-group">
                     <label>Notas / Observaciones:</label>
                     <textarea id="notas" rows="3" placeholder="Indicaciones especiales, posición, etc."></textarea>
                 </div>
-                
+
                 <div class="form-group">
                     <label>¿Es un estudio programado?</label>
                     <select id="esProgramado" onchange="toggleHoraProgramada()">
@@ -46,11 +50,11 @@
                     <input type="datetime-local" id="horaProgramada">
                     <small>📅 Selecciona fecha y hora exacta del estudio programado</small>
                 </div>
-                
+
                 <div class="form-group">
-                    <label>Foto de la solicitud:</label>
-                    <input type="file" id="fotoSolicitud" accept="image/*" capture="environment" required>
-                    <small>📷 Toma foto del papel de solicitud</small>
+                    <label>Archivo de solicitud: * (Foto o PDF)</label>
+                    <input type="file" id="archivoSolicitud" accept="image/*,application/pdf" capture="environment" required>
+                    <small>📷 Toma foto o selecciona PDF de la solicitud</small>
                 </div>
                 <button type="submit" class="btn-primary">➕ Registrar Solicitud</button>
             </form>
