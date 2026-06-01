@@ -647,3 +647,28 @@ body {
     flex: 1;
     min-width: 140px;
 }
+/* Admin - Gestión de solicitudes */
+.estado-badge.pendiente { background: #fff3e0; color: #f57c00; }
+.estado-badge.en_camino { background: #e3f2fd; color: #1976d2; }
+.estado-badge.rechazado { background: #ffebee; color: #d32f2f; }
+.estado-badge.finalizado { background: #e8f5e9; color: #388e3c; }
+
+.admin-actions {
+    margin-top: 10px;
+    border-top: 1px dashed #ccc;
+    padding-top: 10px;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.admin-actions .btn-action {
+    flex: 1;
+    min-width: 140px;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8rem;
+}
