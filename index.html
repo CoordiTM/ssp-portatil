@@ -1,4 +1,14 @@
-<!DOCTYPE html>
+
+# Generar todos los archivos actualizados del sistema SSP Rx Portátil
+# Con todas las funcionalidades confirmadas
+
+import os
+
+output_dir = "/mnt/agents/output/ssp_portatil"
+os.makedirs(output_dir, exist_ok=True)
+
+# ==================== 1. index.html ====================
+index_html = '''<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -41,6 +51,16 @@
                 <p style="font-size: 0.85rem; color: #666; margin-top: 5px;">Guía completa del sistema</p>
             </a>
         </div>
+        
+        <footer style="text-align: center; margin-top: 30px; padding: 20px; color: #999; font-size: 0.8rem;">
+            <p>© 2026 HNASS - Servicio de Radiodiagnóstico y Ecografía</p>
+            <p>Todos los derechos reservados. Sistema protegido.</p>
+        </footer>
     </div>
 </body>
-</html>
+</html>'''
+
+with open(f"{output_dir}/index.html", "w", encoding="utf-8") as f:
+    f.write(index_html)
+
+print("✅ index.html generado")
