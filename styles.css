@@ -1,6 +1,4 @@
-
-# ==================== 8. styles.css (COMPLETO) ====================
-styles_css = '''* {
+* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -222,8 +220,7 @@ body {
     color: #555;
 }
 
-.filtro-fecha input,
-.filtro-fecha select {
+.filtro-fecha input {
     padding: 8px 12px;
     border: 2px solid #e0e0e0;
     border-radius: 8px;
@@ -257,14 +254,6 @@ body {
 .btn-filtro.active {
     border-color: #2e86ab;
     background: #ebf5fb;
-}
-
-.badge {
-    background: #d32f2f;
-    color: white;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
 }
 
 /* Lista de cards */
@@ -335,18 +324,6 @@ body {
     margin-top: 5px;
 }
 
-/* Badge de servicio */
-.servicio-badge {
-    display: inline-block;
-    background: #e8f5e9;
-    color: #388e3c;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-top: 5px;
-}
-
 .estado-badge {
     padding: 4px 10px;
     border-radius: 20px;
@@ -396,7 +373,6 @@ body {
     color: #2e86ab;
     text-decoration: none;
     font-size: 0.9rem;
-    font-weight: 600;
 }
 
 .card-actions {
@@ -499,23 +475,6 @@ body {
     cursor: pointer;
 }
 
-/* Admin - Gestión de solicitudes */
-.admin-actions {
-    margin-top: 10px;
-    border-top: 1px dashed #ccc;
-    padding-top: 10px;
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-
-.admin-actions .btn-action {
-    flex: 1;
-    min-width: 140px;
-    padding: 8px;
-    font-size: 0.8rem;
-}
-
 /* Reportes */
 .stats-reporte {
     display: grid;
@@ -556,7 +515,42 @@ body {
     background: #f5f5f5;
 }
 
-/* Consulta - Trazabilidad */
+/* Consulta */
+.estado-pendiente { color: #f39c12; font-weight: 600; }
+.estado-en_camino { color: #e67e22; font-weight: 600; }
+.estado-rechazado { color: #e74c3c; font-weight: 600; }
+.estado-finalizado { color: #27ae60; font-weight: 600; }
+
+/* Alertas */
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+    .menu-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .header-main h1 {
+        font-size: 1.1rem;
+    }
+    
+    .card-header {
+        flex-direction: column;
+    }
+    
+    .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .btn-action {
+        min-width: 100%;
+    }
+}
+/* Trazabilidad en consulta */
 .trazabilidad-estados {
     margin-top: 15px;
     padding: 12px;
@@ -586,7 +580,7 @@ body {
     color: #1a5276;
 }
 
-/* Consulta - Historial de notas */
+/* Historial de notas en consulta */
 .historial-notas-consulta {
     margin-top: 15px;
     padding: 12px;
@@ -639,50 +633,3 @@ body {
     margin: 0;
     line-height: 1.4;
 }
-
-/* Estados de consulta */
-.estado-pendiente { color: #f39c12; font-weight: 600; }
-.estado-en_camino { color: #e67e22; font-weight: 600; }
-.estado-rechazado { color: #e74c3c; font-weight: 600; }
-.estado-finalizado { color: #27ae60; font-weight: 600; }
-
-/* Alertas */
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.7; }
-}
-
-/* Responsive */
-@media (max-width: 600px) {
-    .menu-cards {
-        grid-template-columns: 1fr;
-    }
-    
-    .header-main h1 {
-        font-size: 1.1rem;
-    }
-    
-    .card-header {
-        flex-direction: column;
-    }
-    
-    .info-row {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-    
-    .btn-action {
-        min-width: 100%;
-    }
-    
-    .admin-actions .btn-action {
-        min-width: 100%;
-    }
-}
-'''
-
-with open(f"{output_dir}/styles.css", "w", encoding="utf-8") as f:
-    f.write(styles_css)
-
-print("✅ styles.css generado")
-print(f"Tamaño: {len(styles_css)} caracteres")

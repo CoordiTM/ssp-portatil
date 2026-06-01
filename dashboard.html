@@ -1,6 +1,4 @@
-
-# ==================== 4. dashboard.html ====================
-dashboard_html = '''<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -50,17 +48,8 @@ dashboard_html = '''<!DOCTYPE html>
         </section>
 
         <a href="index.html" class="btn-volver" onclick="localStorage.clear()">← Cerrar sesión</a>
-        
-        <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
-            <p>© 2026 HNASS - Todos los derechos reservados</p>
-        </footer>
     </div>
 
     <script type="module" src="app.js"></script>
 </body>
-</html>'''
-
-with open(f"{output_dir}/dashboard.html", "w", encoding="utf-8") as f:
-    f.write(dashboard_html)
-
-print("✅ dashboard.html generado")
+</html>

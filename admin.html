@@ -13,27 +13,6 @@
             <h2>Panel de Administración</h2>
         </header>
 
-        <!-- GESTIÓN DE SOLICITUDES -->
-        <section class="card">
-            <h2>📋 Gestión de Solicitudes</h2>
-            
-            <div class="filtro-fecha">
-                <label>Filtrar por estado:</label>
-                <select id="filtroEstadoAdmin" onchange="cargarSolicitudesAdmin()">
-                    <option value="todos">Todas</option>
-                    <option value="pendiente">Pendientes</option>
-                    <option value="en_camino">En camino</option>
-                    <option value="rechazado">No atendidas</option>
-                    <option value="finalizado">Atendidas</option>
-                </select>
-            </div>
-            
-            <div id="listaSolicitudesAdmin" class="lista-cards">
-                <p class="empty">Cargando solicitudes...</p>
-            </div>
-        </section>
-
-        <!-- Crear Tecnólogo -->
         <section class="card">
             <h2>👤 Crear Nuevo Tecnólogo</h2>
             <form id="formCrearTecnologo">
@@ -53,7 +32,6 @@
             </form>
         </section>
 
-        <!-- Lista de tecnólogos -->
         <section class="card">
             <h2>👥 Tecnólogos Registrados</h2>
             <div id="listaTecnologos" class="lista">
@@ -61,13 +39,12 @@
             </div>
         </section>
 
-        <!-- Reportes -->
         <section class="card">
             <h2>📈 Reportes</h2>
             
             <div class="form-group">
                 <label>Tipo de reporte:</label>
-                <select id="tipoReporte" onchange="toggleTecnologoFiltro()">
+                <select id="tipoReporte">
                     <option value="general">General (todos los tecnólogos)</option>
                     <option value="individual">Individual (por tecnólogo)</option>
                 </select>
@@ -95,18 +72,47 @@
         </section>
 
         <a href="index.html" class="btn-volver" onclick="localStorage.clear()">← Cerrar sesión</a>
-        
-        <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
-            <p>© 2026 HNASS - Todos los derechos reservados</p>
-        </footer>
     </div>
 
     <script type="module" src="app.js"></script>
-    <script>
-        function toggleTecnologoFiltro() {
-            const tipo = document.getElementById('tipoReporte').value;
-            document.getElementById('grupoTecnologo').style.display = tipo === 'individual' ? 'block' : 'none';
+    <script type="module">
+        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        
+        const firebaseConfig = {
+            apiKey: "AIzaSyAT7b1rR6rSxaf2dJzLrDjluOxYBQAd00g",
+            authDomain: "ssp-rx-portatil.firebaseapp.com",
+            projectId: "ssp-rx-portatil",
+            storageBucket: "ssp-rx-portatil.firebasestorage.app",
+            messagingSenderId: "592475172989",
+            appId: "1:592475172989:web:7dfb1321ed48231f0a8114"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        
+        function cargarTecnologosSelect() {
+            const select = document.getElementById('tecnologoFiltro');
+            const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
+            
+            onSnapshot(q, (snapshot) => {
+                select.innerHTML = '<option value="">Seleccionar...</option>';
+                snapshot.forEach((docSnap) => {
+                    const t = docSnap.data();
+                    const option = document.createElement('option');
+                    option.value = t.nombre;
+                    option.textContent = `${t.nombre} (DNI: ${t.dni})`;
+                    select.appendChild(option);
+                });
+            });
         }
+        
+        document.getElementById('tipoReporte').addEventListener('change', function() {
+            document.getElementById('grupoTecnologo').style.display = 
+                this.value === 'individual' ? 'block' : 'none';
+        });
+        
+        cargarTecnologosSelect();
     </script>
 </body>
-</html>'''
+</html>
