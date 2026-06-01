@@ -20,6 +20,19 @@ const CLOUDINARY_UPLOAD_PRESET = "ssp-portatil";
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// ==================== NOTIFICACIONES DE VOZ ====================
+
+function hablar(texto) {
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(texto);
+        utterance.lang = 'es-ES';
+        utterance.rate = 1;
+        utterance.pitch = 1;
+        window.speechSynthesis.speak(utterance);
+    }
+}
+
 // ==================== UTILIDADES ====================
 
 async function subirFotoCloudinary(file) {
@@ -35,7 +48,18 @@ async function subirFotoCloudinary(file) {
     return data.secure_url;
 }
 
-function tiempoTranscurrido(timestamp, horaProgramada) {
+function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado) {
+    // Si está finalizado o rechazado, mostrar tiempo total fijo
+    if ((estado === 'finalizado' || estado === 'rechazado') && timestampFinalizado) {
+        const inicio = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+        const fin = timestampFinalizado.toDate ? timestampFinalizado.toDate() : new Date(timestampFinalizado);
+        const diff = Math.floor((fin - inicio) / 1000);
+        
+        if (diff < 60) return `✅ ${diff}s total`;
+        if (diff < 3600) return `✅ ${Math.floor(diff/60)}m total`;
+        return `✅ ${Math.floor(diff/3600)}h ${Math.floor((diff%3600)/60)}m total`;
+    }
+    
     if (!timestamp) return '-';
     
     const ahora = new Date();
@@ -138,6 +162,10 @@ if (formSolicitud) {
             
             formSolicitud.reset();
             document.getElementById('grupoHoraProgramada').style.display = 'none';
+            
+            // NOTIFICACIÓN DE VOZ PARA USUARIO
+            hablar('Tu solicitud ha sido registrada con éxito');
+            
             alert(`✅ Solicitud registrada correctamente\n\n🆔 CÓDIGO DE SEGUIMIENTO: ${dni}\n\nGuarde este DNI para consultar el estado.`);
             
         } catch (error) {
@@ -299,6 +327,7 @@ if (formLogin) {
 const listaCards = document.getElementById('listaSolicitudes');
 let estadoFiltro = 'todos';
 let fechaFiltro = '';
+let solicitudesAnteriores = new Set();
 
 if (listaCards) {
     const nombreTec = localStorage.getItem('tecnologoNombre');
@@ -342,7 +371,7 @@ if (listaCards) {
         const data = sol.data;
         
         const fechaHora = formatearFechaHora(data.timestamps?.creado);
-        const tiempo = tiempoTranscurrido(data.timestamps?.creado, data.horaProgramada);
+        const tiempo = tiempoTranscurrido(data.timestamps?.creado, data.horaProgramada, data.estado, data.timestamps?.finalizado || data.timestamps?.rechazado);
         const alerta = colorAlerta(data);
         
         let acciones = '';
@@ -354,81 +383,39 @@ if (listaCards) {
             const horaProgStr = horaProg.toLocaleString('es-PE', {
                 day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
             });
-            indicadorProgramado = `<span class="badge-programado">⏰ Programado: ${horaProgStr}</span>`;
+            indicadorProgramado = '<span class="badge-programado">⏰ Programado: ' + horaProgStr + '</span>';
         }
         
         let historialNotasHTML = '';
         if (data.historialNotas && data.historialNotas.length > 0) {
             historialNotasHTML = '<div class="historial-notas"><h4>📝 Registro de eventos:</h4>';
             data.historialNotas.forEach((nota) => {
-                historialNotasHTML += `
-                    <div class="nota-item">
-                        <span class="nota-fecha">${nota.fecha}</span>
-                        <span class="nota-tecnologo">👤 ${nota.tecnologo}</span>
-                        <p class="nota-texto">${nota.texto}</p>
-                    </div>
-                `;
+                historialNotasHTML += '<div class="nota-item"><span class="nota-fecha">' + nota.fecha + '</span><span class="nota-tecnologo">👤 ' + nota.tecnologo + '</span><p class="nota-texto">' + nota.texto + '</p></div>';
             });
             historialNotasHTML += '</div>';
         }
         
         if (data.estado === 'pendiente') {
             estadoBadge = '<span class="estado-badge pendiente">⏳ PENDIENTE</span>';
-            acciones = `
-                <button onclick="cambiarEstado('${id}', 'en_camino')" class="btn-action camino">🚶 EN CAMINO</button>
-                <button onclick="mostrarRechazo('${id}')" class="btn-action rechazar">❌ NO ATENDER</button>
-            `;
+            acciones = '<button onclick="cambiarEstado(\'' + id + '\', \'en_camino\')" class="btn-action camino">🚶 EN CAMINO</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
         } else if (data.estado === 'en_camino') {
             estadoBadge = '<span class="estado-badge camino">🚶 EN CAMINO</span>';
-            acciones = `
-                <button onclick="mostrarNotasContingencia('${id}')" class="btn-action notas">📝 NOTAS</button>
-                <button onclick="cambiarEstado('${id}', 'finalizado')" class="btn-action finalizar">✅ FINALIZAR</button>
-                <button onclick="mostrarRechazo('${id}')" class="btn-action rechazar">❌ NO ATENDER</button>
-            `;
+            acciones = '<button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="cambiarEstado(\'' + id + '\', \'finalizado\')" class="btn-action finalizar">✅ FINALIZAR</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
         } else if (data.estado === 'rechazado') {
             estadoBadge = '<span class="estado-badge rechazado">❌ NO ATENDIDO</span>';
-            acciones = `
-                <button onclick="revertirRechazo('${id}')" class="btn-action revertir">↩️ REVERTIR</button>
-                <p class="motivo">Motivo: ${data.motivoRechazo || 'No especificado'}</p>
-            `;
+            acciones = '<button onclick="revertirRechazo(\'' + id + '\')" class="btn-action revertir">↩️ REVERTIR</button><p class="motivo">Motivo: ' + (data.motivoRechazo || 'No especificado') + '</p>';
         } else if (data.estado === 'finalizado') {
             estadoBadge = '<span class="estado-badge finalizado">✅ ATENDIDO</span>';
-            acciones = `<span class="completado">Completado</span>`;
+            acciones = '<span class="completado">Completado</span>';
         }
         
-        return `
-            <div class="solicitud-card-v2 ${alerta}" id="card-${id}">
-                <div class="card-header">
-                    <div class="card-titulo">
-                        <strong>${data.nombrePaciente || '-'}</strong>
-                        <span class="dni">DNI: ${data.dniPaciente || '-'}</span>
-                        ${indicadorProgramado}
-                    </div>
-                    ${estadoBadge}
-                </div>
-                
-                <div class="card-info">
-                    <div class="info-row">
-                        <span>🕐 ${fechaHora}</span>
-                        <span class="tiempo">⏱️ ${tiempo}</span>
-                    </div>
-                    <div class="info-row">
-                        <span>🙋 ${data.solicitadoPor}</span>
-                        <span>🔬 ${data.tecnologoAsignado || 'Sin asignar'}</span>
-                    </div>
-                    ${data.notas ? `<div class="info-row notas">📝 ${data.notas}</div>` : ''}
-                </div>
-                
-                <div class="card-foto">
-                    ${data.fotoSolicitud ? `<a href="${data.fotoSolicitud}" target="_blank">📷 Ver solicitud</a>` : ''}
-                </div>
-                
-                <div class="card-actions">
-                    ${acciones}
-                    ${historialNotasHTML}
-                </div>
-            </div>
-        `;
+        // Botones admin
+        let adminBotones = '';
+        if (localStorage.getItem('rol') === 'admin') {
+            adminBotones = '<div style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;"><button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button><button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button></div>';
+        }
+        
+        return '<div class="solicitud-card-v2 ' + alerta + '" id="card-' + id + '"><div class="card-header"><div class="card-titulo"><strong>' + (data.nombrePaciente || '-') + '</strong><span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>' + indicadorProgramado + '</div>' + estadoBadge + '</div><div class="card-info"><div class="info-row"><span>🕐 ' + fechaHora + '</span><span class="tiempo">⏱️ ' + tiempo + '</span></div><div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>' + (data.notas ? '<div class="info-row notas">📝 ' + data.notas + '</div>' : '') + '</div><div class="card-foto">' + (data.fotoSolicitud ? '<a href="' + data.fotoSolicitud + '" target="_blank">📷 Ver solicitud</a>' : '') + '</div><div class="card-actions">' + acciones + historialNotasHTML + adminBotones + '</div></div>';
     }
     
     window.cambiarEstado = async function(id, nuevoEstado) {
@@ -510,6 +497,34 @@ if (listaCards) {
         }
     };
     
+    // ==================== FUNCIONES ADMIN ====================
+    
+    window.revertirEstadoAdmin = async function(id) {
+        if (confirm('¿Revertir esta solicitud a estado PENDIENTE?')) {
+            try {
+                await updateDoc(doc(db, 'solicitudes', id), {
+                    estado: 'pendiente',
+                    motivoRechazo: null,
+                    tecnologoAsignado: null
+                });
+                alert('✅ Estado revertido a PENDIENTE');
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        }
+    };
+    
+    window.eliminarSolicitud = async function(id) {
+        if (confirm('¿Eliminar permanentemente esta solicitud?')) {
+            try {
+                await deleteDoc(doc(db, 'solicitudes', id));
+                alert('✅ Solicitud eliminada');
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        }
+    };
+    
     let unsubscribe = null;
     
     function cargarSolicitudes() {
@@ -520,9 +535,15 @@ if (listaCards) {
         unsubscribe = onSnapshot(q, (snapshot) => {
             let html = '';
             let counts = { pendiente: 0, en_camino: 0, rechazado: 0, finalizado: 0 };
+            let nuevasSolicitudes = 0;
             
             snapshot.forEach((docSnap) => {
                 const data = docSnap.data();
+                
+                // Detectar nueva solicitud pendiente
+                if (data.estado === 'pendiente' && !solicitudesAnteriores.has(docSnap.id)) {
+                    nuevasSolicitudes++;
+                }
                 
                 if (estadoFiltro !== 'todos' && data.estado !== estadoFiltro) return;
                 
@@ -533,7 +554,14 @@ if (listaCards) {
                 
                 if (counts[data.estado] !== undefined) counts[data.estado]++;
                 html += crearCardSolicitud({ id: docSnap.id, data });
+                
+                solicitudesAnteriores.add(docSnap.id);
             });
+            
+            // NOTIFICACIÓN DE VOZ PARA TECNÓLOGO
+            if (nuevasSolicitudes > 0) {
+                hablar('Ha llegado una nueva solicitud');
+            }
             
             const countPendiente = document.getElementById('countPendiente');
             const countEnCamino = document.getElementById('countEnCamino');
@@ -548,7 +576,7 @@ if (listaCards) {
             listaCards.innerHTML = html || '<p class="empty">No hay solicitudes</p>';
         }, (error) => {
             console.error('Error:', error);
-            listaCards.innerHTML = `<p class="empty">❌ Error: ${error.message}</p>`;
+            listaCards.innerHTML = '<p class="empty">❌ Error: ' + error.message + '</p>';
         });
     }
     
@@ -594,12 +622,7 @@ if (formCrearTecnologo) {
             let html = '';
             snapshot.forEach((docSnap) => {
                 const t = docSnap.data();
-                html += `
-                    <div class="tecnologo-item">
-                        <span><strong>${t.nombre}</strong> (DNI: ${t.dni})</span>
-                        <button onclick="eliminarTecnologo('${docSnap.id}')" class="btn-eliminar">🗑️</button>
-                    </div>
-                `;
+                html += '<div class="tecnologo-item"><span><strong>' + t.nombre + '</strong> (DNI: ' + t.dni + ')</span><button onclick="eliminarTecnologo(\'' + docSnap.id + '\')" class="btn-eliminar">🗑️</button></div>';
             });
             const lista = document.getElementById('listaTecnologos');
             if (lista) lista.innerHTML = html || '<p class="empty">No hay tecnólogos registrados</p>';
@@ -687,61 +710,18 @@ window.generarReporte = async function() {
     
     let htmlTec = '';
     for (const [tec, cant] of Object.entries(porTecnologo)) {
-        htmlTec += `<li>${tec}: ${cant} atenciones</li>`;
+        htmlTec += '<li>' + tec + ': ' + cant + ' atenciones</li>';
     }
     
-    let tablaHTML = `
-        <table class="tabla-reporte" id="tablaReporte">
-            <thead>
-                <tr>
-                    <th>Fecha/Hora</th>
-                    <th>DNI</th>
-                    <th>Paciente</th>
-                    <th>Solicita</th>
-                    <th>Estado</th>
-                    <th>Tecnólogo</th>
-                    <th>Tiempo Atención</th>
-                    <th>Notas</th>
-                </tr>
-            </thead>
-            <tbody>
-    `;
+    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora</th><th>DNI</th><th>Paciente</th><th>Solicita</th><th>Estado</th><th>Tecnólogo</th><th>Tiempo Atención</th><th>Notas</th></tr></thead><tbody>';
     
     solicitudes.forEach(s => {
-        tablaHTML += `
-            <tr>
-                <td>${s.fechaHora}</td>
-                <td>${s.dni}</td>
-                <td>${s.paciente}</td>
-                <td>${s.solicitadoPor}</td>
-                <td>${s.estado}</td>
-                <td>${s.tecnologo}</td>
-                <td>${s.tiempoAtencion}</td>
-                <td>${s.notas}</td>
-            </tr>
-        `;
+        tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + s.tecnologo + '</td><td>' + s.tiempoAtencion + '</td><td>' + s.notas + '</td></tr>';
     });
     
     tablaHTML += '</tbody></table>';
     
-    contenedor.innerHTML = `
-        <div class="card">
-            <h3>📊 Reporte ${tipoReporte === 'individual' ? 'Individual' : 'General'} del ${desde} al ${hasta}</h3>
-            <div class="stats-reporte">
-                <div class="stat-box"><strong>Total:</strong> ${total}</div>
-                <div class="stat-box"><strong>Atendidas:</strong> ${atendidos}</div>
-                <div class="stat-box"><strong>No atendidas:</strong> ${rechazados}</div>
-                <div class="stat-box"><strong>Pendientes:</strong> ${pendientes}</div>
-                <div class="stat-box"><strong>Tiempo promedio:</strong> ${tiempoPromedio} min</div>
-            </div>
-            ${tipoReporte === 'general' ? `<h4>👥 Por tecnólogo:</h4><ul>${htmlTec || '<li>Sin datos</li>'}</ul>` : ''}
-            
-            <h4>📋 Detalle:</h4>
-            ${tablaHTML}
-            
-            <button onclick="exportarExcel()" class="btn-primary" style="margin-top:15px;">📥 Exportar a Excel</button>
-        </div>
-    `;
+    contenedor.innerHTML = '<div class="card"><h3>📊 Reporte ' + (tipoReporte === 'individual' ? 'Individual' : 'General') + ' del ' + desde + ' al ' + hasta + '</h3><div class="stats-reporte"><div class="stat-box"><strong>Total:</strong> ' + total + '</div><div class="stat-box"><strong>Atendidas:</strong> ' + atendidos + '</div><div class="stat-box"><strong>No atendidas:</strong> ' + rechazados + '</div><div class="stat-box"><strong>Pendientes:</strong> ' + pendientes + '</div><div class="stat-box"><strong>Tiempo promedio:</strong> ' + tiempoPromedio + ' min</div></div>' + (tipoReporte === 'general' ? '<h4>👥 Por tecnólogo:</h4><ul>' + (htmlTec || '<li>Sin datos</li>') + '</ul>' : '') + '<h4>📋 Detalle:</h4>' + tablaHTML + '<button onclick="exportarExcel()" class="btn-primary" style="margin-top:15px;">📥 Exportar a Excel</button></div>';
     
     window.datosReporte = solicitudes;
 };
@@ -755,7 +735,7 @@ window.exportarExcel = function() {
     let csv = 'Fecha/Hora,DNI,Paciente,Solicita,Estado,Tecnologo,Tiempo Atencion,Notas\n';
     
     window.datosReporte.forEach(s => {
-        csv += `"${s.fechaHora}","${s.dni}","${s.paciente}","${s.solicitadoPor}","${s.estado}","${s.tecnologo}","${s.tiempoAtencion}","${s.notas}"\n`;
+        csv += '"' + s.fechaHora + '","' + s.dni + '","' + s.paciente + '","' + s.solicitadoPor + '","' + s.estado + '","' + s.tecnologo + '","' + s.tiempoAtencion + '","' + s.notas + '"\n';
     });
     
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -763,7 +743,7 @@ window.exportarExcel = function() {
     const url = URL.createObjectURL(blob);
     
     link.setAttribute('href', url);
-    link.setAttribute('download', `reporte_ssp_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', 'reporte_ssp_' + new Date().toISOString().split('T')[0] + '.csv');
     link.style.visibility = 'hidden';
     
     document.body.appendChild(link);
