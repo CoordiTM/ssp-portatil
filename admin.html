@@ -67,7 +67,7 @@
             
             <div class="form-group">
                 <label>Tipo de reporte:</label>
-                <select id="tipoReporte">
+                <select id="tipoReporte" onchange="toggleTecnologoFiltro()">
                     <option value="general">General (todos los tecnólogos)</option>
                     <option value="individual">Individual (por tecnólogo)</option>
                 </select>
@@ -95,144 +95,18 @@
         </section>
 
         <a href="index.html" class="btn-volver" onclick="localStorage.clear()">← Cerrar sesión</a>
+        
+        <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
+            <p>© 2026 HNASS - Todos los derechos reservados</p>
+        </footer>
     </div>
 
     <script type="module" src="app.js"></script>
-    <script type="module">
-        import { getFirestore, collection, query, orderBy, onSnapshot, where, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        
-        const firebaseConfig = {
-            apiKey: "AIzaSyAT7b1rR6rSxaf2dJzLrDjluOxYBQAd00g",
-            authDomain: "ssp-rx-portatil.firebaseapp.com",
-            projectId: "ssp-rx-portatil",
-            storageBucket: "ssp-rx-portatil.firebasestorage.app",
-            messagingSenderId: "592475172989",
-            appId: "1:592475172989:web:7dfb1321ed48231f0a8114"
-        };
-        
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        
-        // Cargar tecnólogos en select de reportes
-        function cargarTecnologosSelect() {
-            const select = document.getElementById('tecnologoFiltro');
-            const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
-            
-            onSnapshot(q, (snapshot) => {
-                select.innerHTML = '<option value="">Seleccionar...</option>';
-                snapshot.forEach((docSnap) => {
-                    const t = docSnap.data();
-                    const option = document.createElement('option');
-                    option.value = t.nombre;
-                    option.textContent = t.nombre + ' (DNI: ' + t.dni + ')';
-                    select.appendChild(option);
-                });
-            });
+    <script>
+        function toggleTecnologoFiltro() {
+            const tipo = document.getElementById('tipoReporte').value;
+            document.getElementById('grupoTecnologo').style.display = tipo === 'individual' ? 'block' : 'none';
         }
-        
-        document.getElementById('tipoReporte').addEventListener('change', function() {
-            document.getElementById('grupoTecnologo').style.display = 
-                this.value === 'individual' ? 'block' : 'none';
-        });
-        
-        cargarTecnologosSelect();
-        
-        // ==================== GESTIÓN DE SOLICITUDES ADMIN ====================
-        
-        window.cargarSolicitudesAdmin = function() {
-            const filtro = document.getElementById('filtroEstadoAdmin').value;
-            const contenedor = document.getElementById('listaSolicitudesAdmin');
-            
-            let q;
-            if (filtro === 'todos') {
-                q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
-            } else {
-                q = query(collection(db, 'solicitudes'), where('estado', '==', filtro), orderBy('timestamps.creado', 'desc'));
-            }
-            
-            onSnapshot(q, (snapshot) => {
-                if (snapshot.empty) {
-                    contenedor.innerHTML = '<p class="empty">No hay solicitudes</p>';
-                    return;
-                }
-                
-                let html = '';
-                snapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const id = docSnap.id;
-                    
-                    const estadosLabels = {
-                        'pendiente': '⏳ Pendiente',
-                        'en_camino': '🚶 En camino',
-                        'rechazado': '❌ No atendido',
-                        'finalizado': '✅ Atendido'
-                    };
-                    
-                    const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
-                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-                    }) || '-';
-                    
-                    html += '<div class="solicitud-card-v2" style="border-left: 4px solid #1a5276;">';
-                    html += '<div class="card-header">';
-                    html += '<div class="card-titulo">';
-                    html += '<strong>' + (data.nombrePaciente || '-') + '</strong>';
-                    html += '<span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>';
-                    html += '</div>';
-                    html += '<span class="estado-badge ' + data.estado + '">' + estadosLabels[data.estado] + '</span>';
-                    html += '</div>';
-                    
-                    html += '<div class="card-info">';
-                    html += '<div class="info-row"><span>🕐 ' + fecha + '</span></div>';
-                    html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
-                    if (data.motivoRechazo) {
-                        html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
-                    }
-                    html += '</div>';
-                    
-                    html += '<div class="admin-actions">';
-                    html += '<button onclick="revertirSolicitudAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
-                    html += '<button onclick="eliminarSolicitudAdmin(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
-                    html += '</div>';
-                    
-                    html += '</div>';
-                });
-                
-                contenedor.innerHTML = html;
-            });
-        };
-        
-        window.revertirSolicitudAdmin = async function(id) {
-            if (confirm('¿Revertir esta solicitud a estado PENDIENTE?')) {
-                try {
-                    await updateDoc(doc(db, 'solicitudes', id), {
-                        estado: 'pendiente',
-                        motivoRechazo: null,
-                        tecnologoAsignado: null,
-                        'timestamps.enCamino': null,
-                        'timestamps.finalizado': null,
-                        'timestamps.rechazado': null
-                    });
-                    alert('✅ Solicitud revertida a PENDIENTE');
-                } catch (error) {
-                    alert('❌ Error: ' + error.message);
-                }
-            }
-        };
-        
-        window.eliminarSolicitudAdmin = async function(id) {
-            if (confirm('¿Eliminar permanentemente esta solicitud?')) {
-                try {
-                    await deleteDoc(doc(db, 'solicitudes', id));
-                    alert('✅ Solicitud eliminada');
-                } catch (error) {
-                    alert('❌ Error: ' + error.message);
-                }
-            }
-        };
-        
-        // Cargar solicitudes al iniciar
-        cargarSolicitudesAdmin();
     </script>
 </body>
-</html>
+</html>'''
