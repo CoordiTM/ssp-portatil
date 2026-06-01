@@ -13,6 +13,27 @@
             <h2>Panel de Administración</h2>
         </header>
 
+        <!-- GESTIÓN DE SOLICITUDES -->
+        <section class="card">
+            <h2>📋 Gestión de Solicitudes</h2>
+            
+            <div class="filtro-fecha">
+                <label>Filtrar por estado:</label>
+                <select id="filtroEstadoAdmin" onchange="cargarSolicitudesAdmin()">
+                    <option value="todos">Todas</option>
+                    <option value="pendiente">Pendientes</option>
+                    <option value="en_camino">En camino</option>
+                    <option value="rechazado">No atendidas</option>
+                    <option value="finalizado">Atendidas</option>
+                </select>
+            </div>
+            
+            <div id="listaSolicitudesAdmin" class="lista-cards">
+                <p class="empty">Cargando solicitudes...</p>
+            </div>
+        </section>
+
+        <!-- Crear Tecnólogo -->
         <section class="card">
             <h2>👤 Crear Nuevo Tecnólogo</h2>
             <form id="formCrearTecnologo">
@@ -32,6 +53,7 @@
             </form>
         </section>
 
+        <!-- Lista de tecnólogos -->
         <section class="card">
             <h2>👥 Tecnólogos Registrados</h2>
             <div id="listaTecnologos" class="lista">
@@ -39,6 +61,7 @@
             </div>
         </section>
 
+        <!-- Reportes -->
         <section class="card">
             <h2>📈 Reportes</h2>
             
@@ -76,7 +99,7 @@
 
     <script type="module" src="app.js"></script>
     <script type="module">
-        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot, where, getDocs, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         
         const firebaseConfig = {
@@ -91,6 +114,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
+        // Cargar tecnólogos en select de reportes
         function cargarTecnologosSelect() {
             const select = document.getElementById('tecnologoFiltro');
             const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
@@ -101,7 +125,7 @@
                     const t = docSnap.data();
                     const option = document.createElement('option');
                     option.value = t.nombre;
-                    option.textContent = `${t.nombre} (DNI: ${t.dni})`;
+                    option.textContent = t.nombre + ' (DNI: ' + t.dni + ')';
                     select.appendChild(option);
                 });
             });
@@ -113,6 +137,102 @@
         });
         
         cargarTecnologosSelect();
+        
+        // ==================== GESTIÓN DE SOLICITUDES ADMIN ====================
+        
+        window.cargarSolicitudesAdmin = function() {
+            const filtro = document.getElementById('filtroEstadoAdmin').value;
+            const contenedor = document.getElementById('listaSolicitudesAdmin');
+            
+            let q;
+            if (filtro === 'todos') {
+                q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
+            } else {
+                q = query(collection(db, 'solicitudes'), where('estado', '==', filtro), orderBy('timestamps.creado', 'desc'));
+            }
+            
+            onSnapshot(q, (snapshot) => {
+                if (snapshot.empty) {
+                    contenedor.innerHTML = '<p class="empty">No hay solicitudes</p>';
+                    return;
+                }
+                
+                let html = '';
+                snapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const id = docSnap.id;
+                    
+                    const estadosLabels = {
+                        'pendiente': '⏳ Pendiente',
+                        'en_camino': '🚶 En camino',
+                        'rechazado': '❌ No atendido',
+                        'finalizado': '✅ Atendido'
+                    };
+                    
+                    const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                    }) || '-';
+                    
+                    html += '<div class="solicitud-card-v2" style="border-left: 4px solid #1a5276;">';
+                    html += '<div class="card-header">';
+                    html += '<div class="card-titulo">';
+                    html += '<strong>' + (data.nombrePaciente || '-') + '</strong>';
+                    html += '<span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>';
+                    html += '</div>';
+                    html += '<span class="estado-badge ' + data.estado + '">' + estadosLabels[data.estado] + '</span>';
+                    html += '</div>';
+                    
+                    html += '<div class="card-info">';
+                    html += '<div class="info-row"><span>🕐 ' + fecha + '</span></div>';
+                    html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
+                    if (data.motivoRechazo) {
+                        html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
+                    }
+                    html += '</div>';
+                    
+                    html += '<div class="admin-actions">';
+                    html += '<button onclick="revertirSolicitudAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
+                    html += '<button onclick="eliminarSolicitudAdmin(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
+                    html += '</div>';
+                    
+                    html += '</div>';
+                });
+                
+                contenedor.innerHTML = html;
+            });
+        };
+        
+        window.revertirSolicitudAdmin = async function(id) {
+            if (confirm('¿Revertir esta solicitud a estado PENDIENTE?')) {
+                try {
+                    await updateDoc(doc(db, 'solicitudes', id), {
+                        estado: 'pendiente',
+                        motivoRechazo: null,
+                        tecnologoAsignado: null,
+                        'timestamps.enCamino': null,
+                        'timestamps.finalizado': null,
+                        'timestamps.rechazado': null
+                    });
+                    alert('✅ Solicitud revertida a PENDIENTE');
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            }
+        };
+        
+        window.eliminarSolicitudAdmin = async function(id) {
+            if (confirm('¿Eliminar permanentemente esta solicitud?')) {
+                try {
+                    await deleteDoc(doc(db, 'solicitudes', id));
+                    alert('✅ Solicitud eliminada');
+                } catch (error) {
+                    alert('❌ Error: ' + error.message);
+                }
+            }
+        };
+        
+        // Cargar solicitudes al iniciar
+        cargarSolicitudesAdmin();
     </script>
 </body>
 </html>
