@@ -1,6 +1,4 @@
-
-# ==================== 6. admin.html ====================
-admin_html = '''<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -97,10 +95,6 @@ admin_html = '''<!DOCTYPE html>
         </section>
 
         <a href="index.html" class="btn-volver" onclick="localStorage.clear()">← Cerrar sesión</a>
-        
-        <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
-            <p>© 2026 HNASS - Todos los derechos reservados</p>
-        </footer>
     </div>
 
     <script type="module" src="app.js"></script>
@@ -175,19 +169,15 @@ admin_html = '''<!DOCTYPE html>
                         'finalizado': '✅ Atendido'
                     };
                     
-                    const fecha = data.timestamps && data.timestamps.creado 
-                        ? data.timestamps.creado.toDate().toLocaleString('es-PE', {
-                            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-                        }) : '-';
+                    const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
+                        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+                    }) || '-';
                     
                     html += '<div class="solicitud-card-v2" style="border-left: 4px solid #1a5276;">';
                     html += '<div class="card-header">';
                     html += '<div class="card-titulo">';
                     html += '<strong>' + (data.nombrePaciente || '-') + '</strong>';
                     html += '<span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>';
-                    if (data.servicio) {
-                        html += '<span class="servicio-badge">🏥 ' + data.servicio + '</span>';
-                    }
                     html += '</div>';
                     html += '<span class="estado-badge ' + data.estado + '">' + estadosLabels[data.estado] + '</span>';
                     html += '</div>';
@@ -199,11 +189,6 @@ admin_html = '''<!DOCTYPE html>
                         html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
                     }
                     html += '</div>';
-                    
-                    if (data.archivoSolicitud) {
-                        const esPDF = data.esPDF ? '📄 PDF' : '📷 Foto';
-                        html += '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + esPDF + ' - Ver solicitud</a></div>';
-                    }
                     
                     html += '<div class="admin-actions">';
                     html += '<button onclick="revertirSolicitudAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
@@ -250,9 +235,4 @@ admin_html = '''<!DOCTYPE html>
         cargarSolicitudesAdmin();
     </script>
 </body>
-</html>'''
-
-with open(f"{output_dir}/admin.html", "w", encoding="utf-8") as f:
-    f.write(admin_html)
-
-print("✅ admin.html generado")
+</html>
