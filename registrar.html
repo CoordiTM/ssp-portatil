@@ -52,21 +52,10 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Adjuntar solicitud: * (Foto o PDF)</label>
-                    <div class="file-options">
-                        <label class="file-label">
-                            <input type="file" id="fotoSolicitud" accept="image/*" capture="environment" onchange="seleccionarArchivo(this, 'foto')">
-                            <span class="file-btn">📷 Foto</span>
-                        </label>
-                        <label class="file-label">
-                            <input type="file" id="pdfSolicitud" accept=".pdf,application/pdf" onchange="seleccionarArchivo(this, 'pdf')">
-                            <span class="file-btn">📄 PDF</span>
-                        </label>
-                    </div>
-                    <div id="archivoSeleccionado" class="archivo-info"></div>
-                    <small>📎 Subir foto de la solicitud o archivo PDF</small>
+                    <label>Archivo de solicitud: * (Foto o PDF)</label>
+                    <input type="file" id="archivoSolicitud" accept="image/*,application/pdf" capture="environment" required>
+                    <small>📷 Toma foto o selecciona PDF de la solicitud</small>
                 </div>
-                
                 <button type="submit" class="btn-primary">➕ Registrar Solicitud</button>
             </form>
         </section>
@@ -81,29 +70,6 @@
             const grupoHora = document.getElementById('grupoHoraProgramada');
             grupoHora.style.display = esProgramado === 'si' ? 'block' : 'none';
         }
-        
-        let tipoArchivo = null;
-        let archivoData = null;
-        
-        window.seleccionarArchivo = function(input, tipo) {
-            if (input.files && input.files[0]) {
-                tipoArchivo = tipo;
-                archivoData = input.files[0];
-                
-                const info = document.getElementById('archivoSeleccionado');
-                const nombre = input.files[0].name;
-                const tamaño = (input.files[0].size / 1024).toFixed(1);
-                
-                info.innerHTML = '<div class="archivo-seleccionado"><span>✅ ' + tipo.toUpperCase() + ' seleccionado:</span><strong>' + nombre + '</strong><span>(' + tamaño + ' KB)</span></div>';
-                
-                // Limpiar el otro input
-                if (tipo === 'foto') {
-                    document.getElementById('pdfSolicitud').value = '';
-                } else {
-                    document.getElementById('fotoSolicitud').value = '';
-                }
-            }
-        };
     </script>
 </body>
 </html>
