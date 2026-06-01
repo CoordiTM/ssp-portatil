@@ -1,3 +1,52 @@
+// ==================== COMPRESIÓN DE IMÁGENES ====================
+
+function comprimirImagen(file, maxWidth = 800, calidad = 0.70) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        const reader = new FileReader();
+
+        reader.onload = (e) => {
+            img.src = e.target.result;
+        };
+
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            let width = img.width;
+            let height = img.height;
+
+            if (width > maxWidth) {
+                height = Math.round((height * maxWidth) / width);
+                width = maxWidth;
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob(
+                (blob) => {
+                    if (blob) {
+                        const archivoComprimido = new File([blob], file.name, {
+                            type: 'image/jpeg',
+                            lastModified: Date.now()
+                        });
+                        resolve(archivoComprimido);
+                    } else {
+                        reject(new Error('Error al comprimir imagen'));
+                    }
+                },
+                'image/jpeg',
+                calidad
+            );
+        };
+
+        img.onerror = () => reject(new Error('Error al cargar imagen'));
+        reader.onerror = () => reject(new Error('Error al leer archivo'));
+        reader.readAsDataURL(file);
+    });
+}
+
 // ==================== CONFIGURACIÓN ====================
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
@@ -36,8 +85,11 @@ function hablar(texto) {
 // ==================== UTILIDADES ====================
 
 async function subirFotoCloudinary(file) {
+    // 🚀 COMPRESIÓN AUTOMÁTICA: 800px ancho, 70% calidad, ~300KB
+    const archivoComprimido = await comprimirImagen(file, 800, 0.70);
+    
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', archivoComprimido);  // ← sube archivo comprimido
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     
     const response = await fetch(
