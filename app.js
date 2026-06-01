@@ -69,8 +69,12 @@ async function subirArchivoCloudinary(file) {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+    // Usar raw/upload para PDFs, image/upload para imágenes
+    const resourceType = file.type === 'application/pdf' ? 'raw' : 'image';
+
     const response = await fetch(
-        'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD_NAME + '/auto/upload',
+        'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD_NAME + '/' + resourceType + '/upload',
         { method: 'POST', body: formData }
     );
     const data = await response.json();
