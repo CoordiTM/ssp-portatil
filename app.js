@@ -35,7 +35,6 @@ function hablar(texto) {
 
 // ==================== NOTIFICACIONES PUSH SIMPLIFICADAS ====================
 
-let isTurnoActivo = false;
 let notificacionPermiso = false;
 
 // Solicitar permiso de notificaciones
@@ -70,11 +69,6 @@ async function solicitarPermisoNotificaciones() {
 
 // Mostrar notificacion con las 4 alertas
 function mostrarNotificacionCompleta(titulo, body, servicio, paciente) {
-    if (!isTurnoActivo) {
-        console.log('Turno inactivo, no se muestra notificacion');
-        return;
-    }
-
     console.log('Mostrando notificacion completa...');
 
     // 1. POPUP - Notificacion nativa del navegador
@@ -164,74 +158,6 @@ function reproducirSonidoAlerta() {
         console.log('Sonido reproducido');
     } catch (error) {
         console.error('Error reproduciendo sonido:', error);
-    }
-}
-
-// ==================== CONTROL DE TURNO ====================
-
-window.iniciarTurno = async function() {
-    console.log('Iniciando turno...');
-
-    const permitido = await solicitarPermisoNotificaciones();
-    console.log('Permiso notificaciones:', permitido);
-
-    if (!permitido) {
-        alert('Debes permitir notificaciones para recibir alertas. Haz clic en el icono de candado junto a la URL y selecciona "Permitir notificaciones".');
-        return;
-    }
-
-    isTurnoActivo = true;
-    localStorage.setItem('turnoActivo', 'true');
-
-    const btnIniciar = document.getElementById('btnIniciarTurno');
-    const btnFin = document.getElementById('btnFinTurno');
-    const estado = document.getElementById('estadoTurno');
-
-    if (btnIniciar) btnIniciar.style.display = 'none';
-    if (btnFin) btnFin.style.display = 'inline-block';
-    if (estado) estado.textContent = 'Turno activo - Recibiendo notificaciones';
-
-    // Probar notificacion inmediatamente
-    mostrarNotificacionCompleta(
-        'Prueba de notificacion',
-        'Las notificaciones estan activadas correctamente',
-        'Prueba',
-        'Test'
-    );
-
-    alert('Turno iniciado. Recibiras notificaciones de nuevas solicitudes.');
-};
-
-window.finTurno = function() {
-    console.log('Finalizando turno...');
-    isTurnoActivo = false;
-    localStorage.setItem('turnoActivo', 'false');
-
-    const btnIniciar = document.getElementById('btnIniciarTurno');
-    const btnFin = document.getElementById('btnFinTurno');
-    const estado = document.getElementById('estadoTurno');
-
-    if (btnIniciar) btnIniciar.style.display = 'inline-block';
-    if (btnFin) btnFin.style.display = 'none';
-    if (estado) estado.textContent = '';
-
-    alert('Turno finalizado. No recibiras mas notificaciones.');
-};
-
-// Verificar estado de turno al cargar
-function verificarEstadoTurno() {
-    const turnoActivo = localStorage.getItem('turnoActivo') === 'true';
-    if (turnoActivo) {
-        isTurnoActivo = true;
-        notificacionPermiso = Notification.permission === 'granted';
-
-        const btnIniciar = document.getElementById('btnIniciarTurno');
-        const btnFin = document.getElementById('btnFinTurno');
-        const estado = document.getElementById('estadoTurno');
-
-        if (btnIniciar) btnIniciar.style.display = 'none';
-        if (btnFin) btnFin.style.display = 'inline-block';
-        if (estado) estado.textContent = 'Turno activo - Recibiendo notificaciones';
     }
 }
 
@@ -878,8 +804,15 @@ if (listaCards) {
             cargarSolicitudes();
         });
     }
+    // Solicitar permiso de notificaciones automaticamente al cargar el dashboard
+    solicitarPermisoNotificaciones().then(permitido => {
+        if (permitido) {
+            console.log('Notificaciones activadas automaticamente');
+        } else {
+            console.log('Notificaciones no permitidas por el usuario');
+        }
+    });
     cargarSolicitudes();
-    verificarEstadoTurno();
 }
 
 // ==================== PAGINA: ADMIN ====================
