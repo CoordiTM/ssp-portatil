@@ -11,16 +11,21 @@
         <header class="header-main">
             <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
             <p id="userInfo">Tecnólogo: <span id="nombreTecnologo">-</span></p>
+            <div class="turno-controls" style="margin-top: 15px; display: flex; gap: 10px; justify-content: center;">
+                <button id="btnIniciarTurno" onclick="iniciarTurno()" class="btn-turno btn-iniciar" style="background: #4caf50; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer;">🟢 INICIAR TURNO</button>
+                <button id="btnFinTurno" onclick="finTurno()" class="btn-turno btn-fin" style="background: #f44336; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; display: none;">🔴 FIN DE TURNO</button>
+                <span id="estadoTurno" style="color: white; font-size: 0.9rem; align-self: center;"></span>
+            </div>
         </header>
 
         <section class="card filtros">
             <h2>📊 Solicitudes</h2>
-            
+
             <div class="filtro-fecha">
                 <label>Fecha:</label>
                 <input type="date" id="fechaFiltro">
             </div>
-            
+
             <div class="filtro-botones">
                 <button onclick="filtrarEstado('pendiente')" class="btn-filtro btn-pendiente" id="btn-pendiente">
                     ⏳ <span class="badge" id="countPendiente">0</span>
@@ -48,6 +53,10 @@
         </section>
 
         <a href="index.html" class="btn-volver" onclick="localStorage.clear()">← Cerrar sesión</a>
+
+        <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
+            <p>© 2026 HNASS - Todos los derechos reservados</p>
+        </footer>
     </div>
 
     <script type="module" src="app.js"></script>

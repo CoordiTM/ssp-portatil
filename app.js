@@ -81,6 +81,197 @@ async function subirArchivoCloudinary(file) {
     return data.secure_url;
 }
 
+
+// ==================== NOTIFICACIONES PUSH ====================
+
+let swRegistration = null;
+let isTurnoActivo = false;
+
+// Registrar Service Worker
+async function registrarServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        try {
+            swRegistration = await navigator.serviceWorker.register('sw.js');
+            console.log('Service Worker registrado');
+        } catch (error) {
+            console.error('Error registrando SW:', error);
+        }
+    }
+}
+
+// Solicitar permiso de notificaciones
+async function solicitarPermisoNotificaciones() {
+    if (!('Notification' in window)) {
+        alert('Tu navegador no soporta notificaciones push');
+        return false;
+    }
+
+    const permission = await Notification.requestPermission();
+    return permission === 'granted';
+}
+
+// Mostrar notificación push con sonido, vibración y voz
+function mostrarNotificacionPush(titulo, opciones) {
+    if (!isTurnoActivo) return;
+
+    // 1. POPUP - Notificación nativa
+    if (swRegistration && Notification.permission === 'granted') {
+        swRegistration.showNotification(titulo, {
+            ...opciones,
+            icon: 'https://coorditm.github.io/ssp-portatil/icon-192x192.png',
+            badge: 'https://coorditm.github.io/ssp-portatil/badge-72x72.png',
+            tag: 'nueva-solicitud',
+            requireInteraction: true,
+            actions: [
+                { action: 'abrir', title: 'Ver solicitud' },
+                { action: 'cerrar', title: 'Cerrar' }
+            ]
+        });
+    }
+
+    // 2. SONIDO - Beep fuerte
+    reproducirSonidoAlerta();
+
+    // 3. VIBRACIÓN - Patrón de vibración
+    if ('vibrate' in navigator) {
+        navigator.vibrate([500, 200, 500, 200, 1000]);
+    }
+
+    // 4. VOZ - Mensaje hablado
+    hablar('Nueva solicitud de radiografia portatil');
+}
+
+// Sonido de alerta usando AudioContext (no depende de archivos externos)
+function reproducirSonidoAlerta() {
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Crear oscilador para beep fuerte
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.frequency.value = 800; // Frecuencia alta
+        oscillator.type = 'square';
+
+        gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+        oscillator.start(audioContext.currentTime);
+        oscillator.stop(audioContext.currentTime + 0.5);
+
+        // Segundo beep
+        setTimeout(() => {
+            const osc2 = audioContext.createOscillator();
+            const gain2 = audioContext.createGain();
+            osc2.connect(gain2);
+            gain2.connect(audioContext.destination);
+            osc2.frequency.value = 1000;
+            osc2.type = 'square';
+            gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            osc2.start(audioContext.currentTime);
+            osc2.stop(audioContext.currentTime + 0.5);
+        }, 600);
+
+    } catch (error) {
+        console.error('Error reproduciendo sonido:', error);
+    }
+}
+
+// ==================== CONTROL DE TURNO ====================
+
+window.iniciarTurno = async function() {
+    const permitido = await solicitarPermisoNotificaciones();
+    if (!permitido) {
+        alert('Debes permitir notificaciones para recibir alertas de nuevas solicitudes');
+        return;
+    }
+
+    await registrarServiceWorker();
+
+    isTurnoActivo = true;
+    localStorage.setItem('turnoActivo', 'true');
+
+    // Actualizar UI
+    document.getElementById('btnIniciarTurno').style.display = 'none';
+    document.getElementById('btnFinTurno').style.display = 'inline-block';
+    document.getElementById('estadoTurno').textContent = '✅ Turno activo - Recibiendo notificaciones';
+
+    // Guardar token en Firestore para recibir notificaciones
+    await guardarTokenNotificacion();
+
+    alert('✅ Turno iniciado. Recibirás notificaciones de nuevas solicitudes.');
+};
+
+window.finTurno = async function() {
+    isTurnoActivo = false;
+    localStorage.setItem('turnoActivo', 'false');
+
+    // Actualizar UI
+    document.getElementById('btnIniciarTurno').style.display = 'inline-block';
+    document.getElementById('btnFinTurno').style.display = 'none';
+    document.getElementById('estadoTurno').textContent = '';
+
+    // Eliminar token de Firestore
+    await eliminarTokenNotificacion();
+
+    alert('🔴 Turno finalizado. No recibirás más notificaciones.');
+};
+
+// Guardar token FCM en Firestore
+async function guardarTokenNotificacion() {
+    // Por ahora usamos un token simple basado en el nombre del tecnólogo
+    const tecnologo = localStorage.getItem('tecnologoNombre');
+    if (!tecnologo) return;
+
+    try {
+        await addDoc(collection(db, 'tecnicosTurno'), {
+            nombre: tecnologo,
+            activo: true,
+            timestamp: serverTimestamp()
+        });
+    } catch (error) {
+        console.error('Error guardando token:', error);
+    }
+}
+
+// Eliminar token de Firestore
+async function eliminarTokenNotificacion() {
+    const tecnologo = localStorage.getItem('tecnologoNombre');
+    if (!tecnologo) return;
+
+    try {
+        const q = query(collection(db, 'tecnicosTurno'), where('nombre', '==', tecnologo), where('activo', '==', true));
+        const snapshot = await getDocs(q);
+        snapshot.forEach(async (docSnap) => {
+            await updateDoc(doc(db, 'tecnicosTurno', docSnap.id), {
+                activo: false,
+                timestamp: serverTimestamp()
+            });
+        });
+    } catch (error) {
+        console.error('Error eliminando token:', error);
+    }
+}
+
+// Verificar estado de turno al cargar página
+function verificarEstadoTurno() {
+    const turnoActivo = localStorage.getItem('turnoActivo') === 'true';
+    if (turnoActivo) {
+        isTurnoActivo = true;
+        const btnIniciar = document.getElementById('btnIniciarTurno');
+        const btnFin = document.getElementById('btnFinTurno');
+        const estado = document.getElementById('estadoTurno');
+        if (btnIniciar) btnIniciar.style.display = 'none';
+        if (btnFin) btnFin.style.display = 'inline-block';
+        if (estado) estado.textContent = '✅ Turno activo - Recibiendo notificaciones';
+        registrarServiceWorker();
+    }
+}
+
 // ==================== UTILIDADES ====================
 
 function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado) {
@@ -494,7 +685,8 @@ if (formConsulta) {
                 let archivoHTML = '';
                 if (data.archivoSolicitud) {
                     const tipoArchivo = data.esPDF ? '📄 PDF' : '📷 Foto';
-                    archivoHTML = '<p><strong>📎 Archivo:</strong> <a href="' + data.archivoSolicitud + '" target="_blank">' + tipoArchivo + ' - Ver solicitud</a></p>';
+                    const linkAttr = data.esPDF ? 'download' : 'target="_blank"';
+                    archivoHTML = '<p><strong>📎 Archivo:</strong> <a href="' + data.archivoSolicitud + '" ' + linkAttr + '>' + tipoArchivo + ' - ' + (data.esPDF ? 'Descargar PDF' : 'Ver solicitud') + '</a></p>';
                 }
                 html += '<div class="card">';
                 html += '<h3>📋 Solicitud - ' + formatearFechaHora(data.timestamps.creado) + '</h3>';
@@ -616,7 +808,8 @@ function crearCardSolicitud(sol) {
     let archivoHTML = '';
     if (data.archivoSolicitud) {
         const tipoArchivo = data.esPDF ? '📄 PDF' : '📷 Foto';
-        archivoHTML = '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + tipoArchivo + ' - Ver solicitud</a></div>';
+        const linkAttr = data.esPDF ? 'download' : 'target="_blank"';
+        archivoHTML = '<div class="card-foto"><a href="' + data.archivoSolicitud + '" ' + linkAttr + '>' + tipoArchivo + ' - ' + (data.esPDF ? 'Descargar PDF' : 'Ver solicitud') + '</a></div>';
     }
     return '<div class="solicitud-card-v2 ' + alerta + '" id="card-' + id + '"><div class="card-header"><div class="card-titulo"><strong>' + (data.nombrePaciente || '-') + '</strong><span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>' + indicadorProgramado + '</div>' + estadoBadge + '</div><div class="card-info"><div class="info-row"><span>🕐 ' + fechaHora + '</span><span class="tiempo">⏱️ ' + tiempo + '</span></div>' + servicioHTML + '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>' + (data.notas ? '<div class="info-row notas">📝 ' + data.notas + '</div>' : '') + '</div>' + archivoHTML + '<div class="card-actions">' + acciones + historialNotasHTML + adminBotones + '</div></div>';
 }
@@ -791,7 +984,9 @@ window.cargarSolicitudesAdmin = function() {
             html += '</div>';
             if (data.archivoSolicitud) {
                 const esPDF = data.esPDF ? '📄 PDF' : '📷 Foto';
-                html += '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + esPDF + ' - Ver solicitud</a></div>';
+                const linkAttr = data.esPDF ? 'download' : 'target="_blank"';
+                const linkText = data.esPDF ? 'Descargar PDF' : 'Ver solicitud';
+                html += '<div class="card-foto"><a href="' + data.archivoSolicitud + '" ' + linkAttr + '>' + esPDF + ' - ' + linkText + '</a></div>';
             }
             html += '<div class="admin-actions">';
             html += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
