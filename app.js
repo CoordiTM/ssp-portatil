@@ -719,7 +719,7 @@ function crearCardSolicitud(sol) {
     }
     if (data.estado === 'pendiente') {
         estadoBadge = '<span class="estado-badge pendiente">⏳ PENDIENTE</span>';
-        acciones = '<button onclick="cambiarEstado(\'' + id + '\', \'en_camino\')" class="btn-action camino">🚶 EN CAMINO</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
+        acciones = '<button onclick="cambiarEstado(\'' + id + '\', \'en_camino\')" class="btn-action camino">🚶 EN CAMINO</button><button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
     } else if (data.estado === 'en_camino') {
         estadoBadge = '<span class="estado-badge camino">🚶 EN CAMINO</span>';
         acciones = '<button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="cambiarEstado(\'' + id + '\', \'finalizado\')" class="btn-action finalizar">✅ FINALIZAR</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
@@ -813,6 +813,12 @@ if (listaCards) {
         }
     });
     cargarSolicitudes();
+
+    // Recargar dashboard automaticamente cada 15 minutos para mantener datos frescos
+    setInterval(() => {
+        console.log('Recargando dashboard automaticamente (15 minutos)');
+        window.location.reload();
+    }, 900000); // 15 minutos = 900,000 ms
 }
 
 // ==================== PAGINA: ADMIN ====================
