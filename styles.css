@@ -775,3 +775,54 @@ body {
 .header-main {
     position: relative;
 }
+
+/* ==================== ACORDEÓN TECNÓLOGOS ==================== */
+.acordeon-header {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+.acordeon-icon {
+    font-size: 0.9rem;
+    transition: transform 0.3s;
+}
+.acordeon-body {
+    max-height: 500px;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+}
+.acordeon-body.collapsed {
+    max-height: 0;
+}
+.acordeon-body.collapsed + .acordeon-icon,
+.acordeon-header:has(+ .collapsed) .acordeon-icon {
+    transform: rotate(-90deg);
+}
+
+/* ==================== BOTÓN VOLVER ARRIBA ==================== */
+.btn-volver-arriba {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #1a5276 0%, #2e86ab 100%);
+    color: white;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, opacity 0.2s;
+    opacity: 0.8;
+}
+.btn-volver-arriba:hover {
+    transform: translateY(-3px);
+    opacity: 1;
+}

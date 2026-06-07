@@ -17,11 +17,10 @@
                 <span></span><span></span><span></span>
             </div>
             <div class="dropdown-menu" id="dropdownMenu">
-                <a href="index.html">🏠 Volver al inicio</a>
                 <a href="#" onclick="localStorage.clear(); window.location.href='index.html'; return false;">🚪 Cerrar sesión</a>
             </div>
             <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
-            <p id="userInfo">Tecnólogo: <span id="nombreTecnologo">-</span></p>
+            <p id="userInfo">Tecnólogo Médico: <span id="nombreTecnologo">-</span></p>
             <div style="margin-top: 10px; color: #a8d5ff; font-size: 0.85rem;">
                 🔔 Notificaciones automáticas activas
             </div>
@@ -29,11 +28,6 @@
 
         <section class="card filtros">
             <h2>📊 Solicitudes</h2>
-
-            <div class="filtro-fecha">
-                <label>Fecha:</label>
-                <input type="date" id="fechaFiltro">
-            </div>
 
             <div class="filtro-botones">
                 <button onclick="filtrarEstado('pendiente')" class="btn-filtro btn-pendiente active" id="btn-pendiente">
@@ -58,8 +52,12 @@
         <section class="card">
             <h2>📄 Exportar Mi Producción</h2>
             <div class="form-group">
-                <label>Seleccionar fecha:</label>
-                <input type="date" id="fechaProduccionTec">
+                <label>Desde:</label>
+                <input type="date" id="fechaDesdeProd">
+            </div>
+            <div class="form-group">
+                <label>Hasta:</label>
+                <input type="date" id="fechaHastaProd">
             </div>
             <button onclick="exportarProduccionPDF()" class="btn-primary" style="background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);">📄 Exportar Producción a PDF</button>
         </section>
@@ -87,5 +85,6 @@
             }
         });
     </script>
+    <button class="btn-volver-arriba" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Volver arriba">↑</button>
 </body>
 </html>

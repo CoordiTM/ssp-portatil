@@ -5,6 +5,8 @@ import {
     doc, updateDoc, query, orderBy, serverTimestamp, Timestamp, where, getDocs, deleteDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+// jsPDF y autoTable se cargan via script tags en HTML (UMD)
+
 const firebaseConfig = {
     apiKey: "AIzaSyAT7b1rR6rSxaf2dJzLrDjluOxYBQAd00g",
     authDomain: "ssp-rx-portatil.firebaseapp.com",
@@ -401,6 +403,7 @@ window.filtrarEstado = function(estado) {
         'rechazado': '❌ No atendidas',
         'finalizado': '✅ Atendidas'
     };
+    // Activar visualmente el botón pendiente por default
     const btnPendiente = document.getElementById('btn-pendiente');
     if (btnPendiente && estadoFiltro === 'pendiente') {
         btnPendiente.classList.add('active');
@@ -429,8 +432,7 @@ window.generarReporte = async function() {
     let solicitudes = [];
     let total = 0, atendidos = 0, rechazados = 0, pendientes = 0;
     let tiemposAtencion = [];
-    let porTecnologo = {};
-    snapshot.forEach((docSnap) => {
+        snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const fechaCreado = d.timestamps?.creado?.toDate();
         if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta) {
@@ -459,8 +461,6 @@ window.generarReporte = async function() {
             });
             if (d.estado === 'finalizado') {
                 atendidos++;
-                const tec = d.tecnologoAsignado || 'Sin asignar';
-                porTecnologo[tec] = (porTecnologo[tec] || 0) + 1;
             } else if (d.estado === 'rechazado') {
                 rechazados++;
             } else {
@@ -472,16 +472,13 @@ window.generarReporte = async function() {
         ? (tiemposAtencion.reduce((a,b) => a+b, 0) / tiemposAtencion.length)
         : 0;
     const tiempoPromedio = formatearMinutosAHHMMSS(tiempoPromedioSeg);
-    let htmlTec = '';
-    for (const [tec, cant] of Object.entries(porTecnologo)) {
-        htmlTec += '<li>' + tec + ': ' + cant + ' atenciones</li>';
-    }
-    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo</th><th>Tiempo Atencion</th><th>Notas</th></tr></thead><tbody>';
+
+    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Médico</th><th>Tiempo Atencion</th><th>Notas</th></tr></thead><tbody>';
     solicitudes.forEach(s => {
         tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + s.tecnologo + '</td><td>' + s.tiempoAtencion + '</td><td>' + s.notas + '</td></tr>';
     });
     tablaHTML += '</tbody></table>';
-    contenedor.innerHTML = '<div class="card"><h3>📊 Reporte ' + (tipoReporte === 'individual' ? 'Individual' : 'General') + ' del ' + desde + ' al ' + hasta + '</h3><div class="stats-reporte"><div class="stat-box"><strong>Total:</strong> ' + total + '</div><div class="stat-box"><strong>Atendidas:</strong> ' + atendidos + '</div><div class="stat-box"><strong>No atendidas:</strong> ' + rechazados + '</div><div class="stat-box"><strong>Pendientes:</strong> ' + pendientes + '</div><div class="stat-box"><strong>Tiempo promedio:</strong> ' + tiempoPromedio + ' min</div></div>' + (tipoReporte === 'general' ? '<h4>👥 Por tecnologo:</h4><ul>' + (htmlTec || '<li>Sin datos</li>') + '</ul>' : '') + '<h4>📋 Detalle:</h4>' + tablaHTML + '<button onclick="exportarExcel()" class="btn-primary" style="margin-top:15px;">📥 Exportar a Excel</button><button onclick="exportarPDF()" class="btn-primary" style="margin-top:15px; margin-left:10px; background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);">📄 Exportar a PDF</button></div>';
+    contenedor.innerHTML = '<div class="card"><h3>📊 Reporte ' + (tipoReporte === 'individual' ? 'Individual' : 'General') + ' del ' + desde + ' al ' + hasta + '</h3><div class="stats-reporte"><div class="stat-box"><strong>Total:</strong> ' + total + '</div><div class="stat-box"><strong>Atendidas:</strong> ' + atendidos + '</div><div class="stat-box"><strong>No atendidas:</strong> ' + rechazados + '</div><div class="stat-box"><strong>Pendientes:</strong> ' + pendientes + '</div><div class="stat-box"><strong>Tiempo promedio:</strong> ' + tiempoPromedio + ' min</div></div>' +  '<h4>📋 Detalle:</h4>' + tablaHTML + '<button onclick="exportarExcel()" class="btn-primary" style="margin-top:15px;">📥 Exportar a Excel</button></div>';
     window.datosReporte = solicitudes;
 };
 
@@ -490,19 +487,22 @@ window.exportarExcel = function() {
         alert('No hay datos para exportar');
         return;
     }
-    let csv = 'Fecha/Hora,DNI,Paciente,Servicio,Cama,Solicita,Estado,Tecnologo,Tiempo Atencion,Notas\n';
-    window.datosReporte.forEach(s => {
-        csv += '"' + s.fechaHora + '","' + s.dni + '","' + s.paciente + '","' + s.servicio + '","' + s.numeroCama + '","' + s.solicitadoPor + '","' + s.estado + '","' + s.tecnologo + '","' + s.tiempoAtencion + '","' + s.notas + '"\n';
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', 'reporte_ssp_' + new Date().toISOString().split('T')[0] + '.csv');
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const wb = XLSX.utils.book_new();
+    const data = window.datosReporte.map(s => ({
+        'Fecha/Hora': s.fechaHora,
+        'DNI': s.dni,
+        'Paciente': s.paciente,
+        'Servicio': s.servicio,
+        'Cama': s.numeroCama,
+        'Solicita': s.solicitadoPor,
+        'Estado': s.estado,
+        'Tecnólogo Médico': s.tecnologo,
+        'Tiempo Atención': s.tiempoAtencion,
+        'Notas': s.notas
+    }));
+    const ws = XLSX.utils.json_to_sheet(data);
+    XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
+    XLSX.writeFile(wb, 'reporte_ssp_' + new Date().toISOString().split('T')[0] + '.xlsx');
 };
 
 window.exportarPDF = function() {
@@ -521,7 +521,7 @@ window.exportarPDF = function() {
     pdf.setFontSize(10);
     pdf.text('Periodo: ' + desde + ' al ' + hasta, 14, 22);
     if (tipoReporte === 'individual' && tecnologoFiltro) {
-        pdf.text('Tecnologo: ' + tecnologoFiltro, 14, 27);
+        pdf.text('Tecnologo Medico: ' + tecnologoFiltro, 14, 27);
     }
 
     let atendidos = 0, rechazados = 0, pendientes = 0;
@@ -534,7 +534,7 @@ window.exportarPDF = function() {
     pdf.setFontSize(9);
     pdf.text('Total: ' + window.datosReporte.length + ' | Atendidas: ' + atendidos + ' | No atendidas: ' + rechazados + ' | Pendientes: ' + pendientes, 14, 34);
 
-    const headers = ['Fecha/Hora', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Solicita', 'Estado', 'Tecnologo', 'Tiempo'];
+    const headers = ['Fecha/Hora', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Solicita', 'Estado', 'Tecnologo Medico', 'Tiempo'];
     const data = window.datosReporte.map(s => [
         s.fechaHora, s.dni, s.paciente, s.servicio, s.numeroCama, s.solicitadoPor, s.estado, s.tecnologo, s.tiempoAtencion
     ]);
@@ -553,19 +553,22 @@ window.exportarPDF = function() {
 };
 
 window.exportarProduccionPDF = async function() {
-    const fechaInput = document.getElementById('fechaProduccionTec').value;
-    if (!fechaInput) {
-        alert('Selecciona una fecha');
-        return;
-    }
-    const tecnologoNombre = localStorage.getItem('tecnologoNombre');
-    if (!tecnologoNombre) {
-        alert('No hay tecnologo logueado');
+    const desde = document.getElementById('fechaDesdeProd').value;
+    const hasta = document.getElementById('fechaHastaProd').value;
+
+    if (!desde || !hasta) {
+        alert('Selecciona fecha Desde y Hasta');
         return;
     }
 
-    const fechaDesde = new Date(fechaInput + 'T00:00:00');
-    const fechaHasta = new Date(fechaInput + 'T23:59:59');
+    const tecnologoNombre = localStorage.getItem('tecnologoNombre');
+    if (!tecnologoNombre) {
+        alert('No hay tecnologo medico logueado');
+        return;
+    }
+
+    const fechaDesde = new Date(desde + 'T00:00:00');
+    const fechaHasta = new Date(hasta + 'T23:59:59');
 
     const q = query(collection(db, 'solicitudes'), where('tecnologoAsignado', '==', tecnologoNombre), orderBy('timestamps.creado', 'desc'));
     const snapshot = await getDocs(q);
@@ -581,7 +584,7 @@ window.exportarProduccionPDF = async function() {
                 tiempoAtencion = formatearTiempoHHMMSS(diffSeg);
             }
             produccion.push({
-                hora: formatearFechaHora(d.timestamps?.creado),
+                fechaHora: formatearFechaHora(d.timestamps?.creado),
                 dni: d.dniPaciente,
                 paciente: d.nombrePaciente,
                 servicio: d.servicio || '-',
@@ -593,20 +596,20 @@ window.exportarProduccionPDF = async function() {
     });
 
     if (produccion.length === 0) {
-        alert('No hay atenciones finalizadas para esta fecha');
+        alert('No hay atenciones finalizadas en este rango de fechas');
         return;
     }
 
     const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
     pdf.setFontSize(16);
-    pdf.text('Produccion del Tecnologo - HNASS', 14, 15);
+    pdf.text('Produccion del Tecnologo Medico - HNASS', 14, 15);
     pdf.setFontSize(11);
-    pdf.text('Tecnologo: ' + tecnologoNombre, 14, 23);
-    pdf.text('Fecha: ' + fechaInput, 14, 29);
+    pdf.text('Tecnologo Medico: ' + tecnologoNombre, 14, 23);
+    pdf.text('Periodo: ' + desde + ' al ' + hasta, 14, 29);
     pdf.text('Total atenciones: ' + produccion.length, 14, 35);
 
-    const headers = ['Hora', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
-    const data = produccion.map(p => [p.hora, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas]);
+    const headers = ['Fecha/Hora', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
+    const data = produccion.map(p => [p.fechaHora, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas]);
 
     pdf.autoTable({
         head: [headers],
@@ -618,7 +621,7 @@ window.exportarProduccionPDF = async function() {
         margin: { left: 10, right: 10 }
     });
 
-    pdf.save('produccion_' + tecnologoNombre.replace(/\s+/g, '_') + '_' + fechaInput + '.pdf');
+    pdf.save('produccion_' + tecnologoNombre.replace(/\s+/g, '_') + '_' + desde + '_' + hasta + '.pdf');
 };
 
 // ==================== FUNCIONES GLOBALES: EDITAR TECNÓLOGO ====================
@@ -628,7 +631,7 @@ window.abrirModalEditarTecnologo = async function(id) {
         const docRef = doc(db, 'tecnologos', id);
         const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) {
-            alert('Tecnólogo no encontrado');
+            alert('Tecnólogo Médico no encontrado');
             return;
         }
         const data = docSnap.data();
@@ -659,10 +662,21 @@ window.guardarEdicionTecnologo = async function() {
             updates.clave = clave;
         }
         await updateDoc(doc(db, 'tecnologos', id), updates);
-        alert('✅ Tecnólogo actualizado correctamente');
+        alert('✅ Tecnólogo Médico actualizado correctamente');
         cerrarModalEditar();
     } catch (error) {
         alert('❌ Error: ' + error.message);
+    }
+};
+
+window.toggleAcordeon = function(id) {
+    const el = document.getElementById(id);
+    const icon = document.getElementById(id.replace('Acordeon', 'Icon'));
+    if (el) {
+        el.classList.toggle('collapsed');
+        if (icon) {
+            icon.textContent = el.classList.contains('collapsed') ? '▶' : '▼';
+        }
     }
 };
 
@@ -878,7 +892,6 @@ if (formLogin) {
 
 const listaCards = document.getElementById('listaSolicitudes');
 let estadoFiltro = 'pendiente';
-let fechaFiltro = '';
 let solicitudesAnteriores = new Set();
 
 function crearCardSolicitud(sol) {
@@ -962,10 +975,7 @@ function cargarSolicitudes() {
                 );
             }
             if (estadoFiltro !== 'todos' && data.estado !== estadoFiltro) return;
-            if (fechaFiltro && data.timestamps?.creado) {
-                const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
-                if (fechaDoc !== fechaFiltro) return;
-            }
+            // Filtro por fecha removido - dashboard muestra todas las pendientes
             if (counts[data.estado] !== undefined) counts[data.estado]++;
             html += crearCardSolicitud({ id: docSnap.id, data });
             solicitudesAnteriores.add(docSnap.id);
@@ -991,13 +1001,7 @@ if (listaCards) {
         const el = document.getElementById('nombreTecnologo');
         if (el) el.textContent = nombreTec;
     }
-    const inputFecha = document.getElementById('fechaFiltro');
-    if (inputFecha) {
-        inputFecha.addEventListener('change', () => {
-            fechaFiltro = inputFecha.value;
-            cargarSolicitudes();
-        });
-    }
+    // Filtro de fecha removido - dashboard muestra todas las pendientes en tiempo real
     // Solicitar permiso de notificaciones automaticamente al cargar el dashboard
     solicitarPermisoNotificaciones().then(permitido => {
         if (permitido) {
