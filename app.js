@@ -427,7 +427,7 @@ window.generarReporte = async function() {
     }
     const fechaDesde = new Date(desde + 'T00:00:00');
     const fechaHasta = new Date(hasta + 'T23:59:59');
-    const q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
+    const q = query(collection(db, 'solicitudes'));
     const snapshot = await getDocs(q);
     let solicitudes = [];
     let total = 0, atendidos = 0, rechazados = 0, pendientes = 0;
@@ -570,7 +570,7 @@ window.exportarProduccionPDF = async function() {
     const fechaDesde = new Date(desde + 'T00:00:00');
     const fechaHasta = new Date(hasta + 'T23:59:59');
 
-    const q = query(collection(db, 'solicitudes'), where('tecnologoAsignado', '==', tecnologoNombre), orderBy('timestamps.creado', 'desc'));
+    const q = query(collection(db, 'solicitudes'), where('tecnologoAsignado', '==', tecnologoNombre));
     const snapshot = await getDocs(q);
 
     let produccion = [];
@@ -599,6 +599,9 @@ window.exportarProduccionPDF = async function() {
         alert('No hay atenciones finalizadas en este rango de fechas');
         return;
     }
+
+    // Ordenar por fecha descendente manualmente (evita índice compuesto en Firestore)
+    produccion.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
 
     const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
     pdf.setFontSize(16);
@@ -767,7 +770,7 @@ if (formConsulta) {
             return;
         }
         try {
-            const q = query(collection(db, 'solicitudes'), where('dniPaciente', '==', dni), orderBy('timestamps.creado', 'desc'));
+            const q = query(collection(db, 'solicitudes'), where('dniPaciente', '==', dni));
             const snapshot = await getDocs(q);
             if (snapshot.empty) {
                 resultado.innerHTML = '<p class="empty">❌ No se encontro solicitud con ese DNI</p>';
@@ -957,7 +960,7 @@ let unsubscribe = null;
 
 function cargarSolicitudes() {
     if (unsubscribe) unsubscribe();
-    const q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
+    const q = query(collection(db, 'solicitudes'));
     unsubscribe = onSnapshot(q, (snapshot) => {
         let html = '';
         let counts = { pendiente: 0, en_camino: 0, rechazado: 0, finalizado: 0 };
@@ -1090,19 +1093,29 @@ window.cargarSolicitudesAdmin = function() {
     if (!contenedor) return;
     let q;
     if (filtro === 'todos') {
-        q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
+        q = query(collection(db, 'solicitudes'));
     } else {
-        q = query(collection(db, 'solicitudes'), where('estado', '==', filtro), orderBy('timestamps.creado', 'desc'));
+        q = query(collection(db, 'solicitudes'), where('estado', '==', filtro));
     }
     onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
             contenedor.innerHTML = '<p class="empty">No hay solicitudes</p>';
             return;
         }
-        let html = '';
+        let solicitudesAdmin = [];
         snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            const id = docSnap.id;
+            solicitudesAdmin.push({ id: docSnap.id, data: docSnap.data() });
+        });
+        // Ordenar por fecha descendente manualmente
+        solicitudesAdmin.sort((a, b) => {
+            const fechaA = a.data.timestamps?.creado?.toDate?.() || new Date(0);
+            const fechaB = b.data.timestamps?.creado?.toDate?.() || new Date(0);
+            return fechaB - fechaA;
+        });
+        let html = '';
+        solicitudesAdmin.forEach((item) => {
+            const data = item.data;
+            const id = item.id;
             const estadosLabels = {
                 'pendiente': '⏳ Pendiente',
                 'en_camino': '🚶 En camino',
