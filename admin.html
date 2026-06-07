@@ -5,10 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administrador - HNASS</title>
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- jsPDF + autoTable para exportar PDFs -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <header class="header-main">
+        <header class="header-main" >
+            <div class="menu-hamburger" onclick="toggleMenu()">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="index.html">🏠 Volver al inicio</a>
+                <a href="#" onclick="localStorage.clear(); window.location.href='index.html'; return false;">🚪 Cerrar sesión</a>
+            </div>
             <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
             <h2>Panel de Administración</h2>
         </header>
@@ -20,8 +31,8 @@
             <div class="filtro-fecha">
                 <label>Filtrar por estado:</label>
                 <select id="filtroEstadoAdmin" onchange="cargarSolicitudesAdmin()">
+                    <option value="pendiente" selected>Pendientes</option>
                     <option value="todos">Todas</option>
-                    <option value="pendiente">Pendientes</option>
                     <option value="en_camino">En camino</option>
                     <option value="rechazado">No atendidas</option>
                     <option value="finalizado">Atendidas</option>
@@ -94,7 +105,6 @@
             <div id="resultadoReporte" class="reporte-resultado" style="margin-top:20px;"></div>
         </section>
 
-        <a href="index.html" class="btn-volver" onclick="localStorage.clear()">← Cerrar sesión</a>
     </div>
 
     <script type="module" src="app.js"></script>
@@ -102,6 +112,43 @@
         function toggleTecnologoFiltro() {
             const tipo = document.getElementById('tipoReporte').value;
             document.getElementById('grupoTecnologo').style.display = tipo === 'individual' ? 'block' : 'none';
+        }
+    </script>
+    <!-- Modal Editar Tecnólogo -->
+    <div class="modal-overlay" id="modalEditarTecnologo">
+        <div class="modal-content">
+            <h3>✏️ Editar Tecnólogo</h3>
+            <input type="hidden" id="editTecId">
+            <div class="form-group">
+                <label>DNI:</label>
+                <input type="text" id="editTecDNI" maxlength="8">
+            </div>
+            <div class="form-group">
+                <label>Nombre completo:</label>
+                <input type="text" id="editTecNombre">
+            </div>
+            <div class="form-group">
+                <label>Contraseña:</label>
+                <input type="password" id="editTecClave" placeholder="Dejar en blanco para mantener actual">
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-guardar" onclick="guardarEdicionTecnologo()">💾 Guardar</button>
+                <button class="btn-cancelar" onclick="cerrarModalEditar()">❌ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleMenu() {
+            document.getElementById('dropdownMenu').classList.toggle('active');
+        }
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.menu-hamburger') && !e.target.closest('.dropdown-menu')) {
+                document.getElementById('dropdownMenu').classList.remove('active');
+            }
+        });
+        function cerrarModalEditar() {
+            document.getElementById('modalEditarTecnologo').classList.remove('active');
         }
     </script>
 </body>

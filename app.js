@@ -208,6 +208,20 @@ async function subirArchivoCloudinary(file) {
 
 // ==================== UTILIDADES ====================
 
+function formatearTiempoHHMMSS(totalSegundos) {
+    if (!totalSegundos || totalSegundos < 0) return '00:00:00';
+    const horas = Math.floor(totalSegundos / 3600);
+    const minutos = Math.floor((totalSegundos % 3600) / 60);
+    const segundos = Math.floor(totalSegundos % 60);
+    return String(horas).padStart(2, '0') + ':' + String(minutos).padStart(2, '0') + ':' + String(segundos).padStart(2, '0');
+}
+
+function formatearMinutosAHHMMSS(minutosDecimales) {
+    if (!minutosDecimales || minutosDecimales < 0) return '00:00:00';
+    const totalSegundos = Math.round(minutosDecimales * 60);
+    return formatearTiempoHHMMSS(totalSegundos);
+}
+
 function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado) {
     if (estado === 'finalizado' && timestampFinalizado) {
         const inicio = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
@@ -387,6 +401,12 @@ window.filtrarEstado = function(estado) {
         'rechazado': '❌ No atendidas',
         'finalizado': '✅ Atendidas'
     };
+    const btnPendiente = document.getElementById('btn-pendiente');
+    if (btnPendiente && estadoFiltro === 'pendiente') {
+        btnPendiente.classList.add('active');
+        const btnTodos = document.getElementById('btn-todos');
+        if (btnTodos) btnTodos.classList.remove('active');
+    }
     const tituloEl = document.getElementById('tituloLista');
     if (tituloEl) tituloEl.textContent = titulos[estado] || '📋 Solicitudes';
     cargarSolicitudes();
@@ -418,15 +438,17 @@ window.generarReporte = async function() {
             total++;
             let tiempoAtencion = '-';
             if (d.timestamps.creado && d.timestamps.finalizado) {
-                const diff = (d.timestamps.finalizado.toDate() - d.timestamps.creado.toDate()) / 1000 / 60;
-                tiempoAtencion = diff.toFixed(1) + ' min';
-                tiemposAtencion.push(diff);
+                const diffSeg = (d.timestamps.finalizado.toDate() - d.timestamps.creado.toDate()) / 1000;
+                const diffMin = diffSeg / 60;
+                tiempoAtencion = formatearTiempoHHMMSS(diffSeg);
+                tiemposAtencion.push(diffMin);
             }
             solicitudes.push({
                 fechaHora: formatearFechaHora(d.timestamps?.creado),
                 dni: d.dniPaciente,
                 paciente: d.nombrePaciente,
                 servicio: d.servicio || '-',
+                numeroCama: d.numeroCama || '-',
                 solicitadoPor: d.solicitadoPor,
                 estado: d.estado,
                 tecnologo: d.tecnologoAsignado || 'Sin asignar',
@@ -446,19 +468,20 @@ window.generarReporte = async function() {
             }
         }
     });
-    const tiempoPromedio = tiemposAtencion.length > 0 
-        ? (tiemposAtencion.reduce((a,b) => a+b, 0) / tiemposAtencion.length).toFixed(1) 
+    const tiempoPromedioSeg = tiemposAtencion.length > 0 
+        ? (tiemposAtencion.reduce((a,b) => a+b, 0) / tiemposAtencion.length)
         : 0;
+    const tiempoPromedio = formatearMinutosAHHMMSS(tiempoPromedioSeg);
     let htmlTec = '';
     for (const [tec, cant] of Object.entries(porTecnologo)) {
         htmlTec += '<li>' + tec + ': ' + cant + ' atenciones</li>';
     }
-    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Solicita</th><th>Estado</th><th>Tecnologo</th><th>Tiempo Atencion</th><th>Notas</th></tr></thead><tbody>';
+    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo</th><th>Tiempo Atencion</th><th>Notas</th></tr></thead><tbody>';
     solicitudes.forEach(s => {
-        tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + s.tecnologo + '</td><td>' + s.tiempoAtencion + '</td><td>' + s.notas + '</td></tr>';
+        tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + s.tecnologo + '</td><td>' + s.tiempoAtencion + '</td><td>' + s.notas + '</td></tr>';
     });
     tablaHTML += '</tbody></table>';
-    contenedor.innerHTML = '<div class="card"><h3>📊 Reporte ' + (tipoReporte === 'individual' ? 'Individual' : 'General') + ' del ' + desde + ' al ' + hasta + '</h3><div class="stats-reporte"><div class="stat-box"><strong>Total:</strong> ' + total + '</div><div class="stat-box"><strong>Atendidas:</strong> ' + atendidos + '</div><div class="stat-box"><strong>No atendidas:</strong> ' + rechazados + '</div><div class="stat-box"><strong>Pendientes:</strong> ' + pendientes + '</div><div class="stat-box"><strong>Tiempo promedio:</strong> ' + tiempoPromedio + ' min</div></div>' + (tipoReporte === 'general' ? '<h4>👥 Por tecnologo:</h4><ul>' + (htmlTec || '<li>Sin datos</li>') + '</ul>' : '') + '<h4>📋 Detalle:</h4>' + tablaHTML + '<button onclick="exportarExcel()" class="btn-primary" style="margin-top:15px;">📥 Exportar a Excel</button></div>';
+    contenedor.innerHTML = '<div class="card"><h3>📊 Reporte ' + (tipoReporte === 'individual' ? 'Individual' : 'General') + ' del ' + desde + ' al ' + hasta + '</h3><div class="stats-reporte"><div class="stat-box"><strong>Total:</strong> ' + total + '</div><div class="stat-box"><strong>Atendidas:</strong> ' + atendidos + '</div><div class="stat-box"><strong>No atendidas:</strong> ' + rechazados + '</div><div class="stat-box"><strong>Pendientes:</strong> ' + pendientes + '</div><div class="stat-box"><strong>Tiempo promedio:</strong> ' + tiempoPromedio + ' min</div></div>' + (tipoReporte === 'general' ? '<h4>👥 Por tecnologo:</h4><ul>' + (htmlTec || '<li>Sin datos</li>') + '</ul>' : '') + '<h4>📋 Detalle:</h4>' + tablaHTML + '<button onclick="exportarExcel()" class="btn-primary" style="margin-top:15px;">📥 Exportar a Excel</button><button onclick="exportarPDF()" class="btn-primary" style="margin-top:15px; margin-left:10px; background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);">📄 Exportar a PDF</button></div>';
     window.datosReporte = solicitudes;
 };
 
@@ -467,9 +490,9 @@ window.exportarExcel = function() {
         alert('No hay datos para exportar');
         return;
     }
-    let csv = 'Fecha/Hora,DNI,Paciente,Servicio,Solicita,Estado,Tecnologo,Tiempo Atencion,Notas\n';
+    let csv = 'Fecha/Hora,DNI,Paciente,Servicio,Cama,Solicita,Estado,Tecnologo,Tiempo Atencion,Notas\n';
     window.datosReporte.forEach(s => {
-        csv += '"' + s.fechaHora + '","' + s.dni + '","' + s.paciente + '","' + s.servicio + '","' + s.solicitadoPor + '","' + s.estado + '","' + s.tecnologo + '","' + s.tiempoAtencion + '","' + s.notas + '"\n';
+        csv += '"' + s.fechaHora + '","' + s.dni + '","' + s.paciente + '","' + s.servicio + '","' + s.numeroCama + '","' + s.solicitadoPor + '","' + s.estado + '","' + s.tecnologo + '","' + s.tiempoAtencion + '","' + s.notas + '"\n';
     });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
@@ -480,6 +503,167 @@ window.exportarExcel = function() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+};
+
+window.exportarPDF = function() {
+    if (!window.datosReporte || window.datosReporte.length === 0) {
+        alert('No hay datos para exportar');
+        return;
+    }
+    const pdf = new window.jspdf.jsPDF('l', 'mm', 'a4');
+    const desde = document.getElementById('fechaDesde').value;
+    const hasta = document.getElementById('fechaHasta').value;
+    const tipoReporte = document.getElementById('tipoReporte')?.value || 'general';
+    const tecnologoFiltro = document.getElementById('tecnologoFiltro')?.value || '';
+
+    pdf.setFontSize(16);
+    pdf.text('Reporte SSP Rx Portatil - HNASS', 14, 15);
+    pdf.setFontSize(10);
+    pdf.text('Periodo: ' + desde + ' al ' + hasta, 14, 22);
+    if (tipoReporte === 'individual' && tecnologoFiltro) {
+        pdf.text('Tecnologo: ' + tecnologoFiltro, 14, 27);
+    }
+
+    let atendidos = 0, rechazados = 0, pendientes = 0;
+    window.datosReporte.forEach(s => {
+        if (s.estado === 'finalizado') atendidos++;
+        else if (s.estado === 'rechazado') rechazados++;
+        else pendientes++;
+    });
+
+    pdf.setFontSize(9);
+    pdf.text('Total: ' + window.datosReporte.length + ' | Atendidas: ' + atendidos + ' | No atendidas: ' + rechazados + ' | Pendientes: ' + pendientes, 14, 34);
+
+    const headers = ['Fecha/Hora', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Solicita', 'Estado', 'Tecnologo', 'Tiempo'];
+    const data = window.datosReporte.map(s => [
+        s.fechaHora, s.dni, s.paciente, s.servicio, s.numeroCama, s.solicitadoPor, s.estado, s.tecnologo, s.tiempoAtencion
+    ]);
+
+    pdf.autoTable({
+        head: [headers],
+        body: data,
+        startY: 40,
+        styles: { fontSize: 7, cellPadding: 1.5 },
+        headStyles: { fillColor: [26, 82, 118], textColor: 255 },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+        margin: { left: 10, right: 10 }
+    });
+
+    pdf.save('reporte_ssp_' + desde + '_' + hasta + '.pdf');
+};
+
+window.exportarProduccionPDF = async function() {
+    const fechaInput = document.getElementById('fechaProduccionTec').value;
+    if (!fechaInput) {
+        alert('Selecciona una fecha');
+        return;
+    }
+    const tecnologoNombre = localStorage.getItem('tecnologoNombre');
+    if (!tecnologoNombre) {
+        alert('No hay tecnologo logueado');
+        return;
+    }
+
+    const fechaDesde = new Date(fechaInput + 'T00:00:00');
+    const fechaHasta = new Date(fechaInput + 'T23:59:59');
+
+    const q = query(collection(db, 'solicitudes'), where('tecnologoAsignado', '==', tecnologoNombre), orderBy('timestamps.creado', 'desc'));
+    const snapshot = await getDocs(q);
+
+    let produccion = [];
+    snapshot.forEach((docSnap) => {
+        const d = docSnap.data();
+        const fechaCreado = d.timestamps?.creado?.toDate();
+        if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta && d.estado === 'finalizado') {
+            let tiempoAtencion = '-';
+            if (d.timestamps.creado && d.timestamps.finalizado) {
+                const diffSeg = (d.timestamps.finalizado.toDate() - d.timestamps.creado.toDate()) / 1000;
+                tiempoAtencion = formatearTiempoHHMMSS(diffSeg);
+            }
+            produccion.push({
+                hora: formatearFechaHora(d.timestamps?.creado),
+                dni: d.dniPaciente,
+                paciente: d.nombrePaciente,
+                servicio: d.servicio || '-',
+                numeroCama: d.numeroCama || '-',
+                tiempoAtencion: tiempoAtencion,
+                notas: d.notas || ''
+            });
+        }
+    });
+
+    if (produccion.length === 0) {
+        alert('No hay atenciones finalizadas para esta fecha');
+        return;
+    }
+
+    const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+    pdf.setFontSize(16);
+    pdf.text('Produccion del Tecnologo - HNASS', 14, 15);
+    pdf.setFontSize(11);
+    pdf.text('Tecnologo: ' + tecnologoNombre, 14, 23);
+    pdf.text('Fecha: ' + fechaInput, 14, 29);
+    pdf.text('Total atenciones: ' + produccion.length, 14, 35);
+
+    const headers = ['Hora', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
+    const data = produccion.map(p => [p.hora, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas]);
+
+    pdf.autoTable({
+        head: [headers],
+        body: data,
+        startY: 42,
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [26, 82, 118], textColor: 255 },
+        alternateRowStyles: { fillColor: [240, 240, 240] },
+        margin: { left: 10, right: 10 }
+    });
+
+    pdf.save('produccion_' + tecnologoNombre.replace(/\s+/g, '_') + '_' + fechaInput + '.pdf');
+};
+
+// ==================== FUNCIONES GLOBALES: EDITAR TECNÓLOGO ====================
+
+window.abrirModalEditarTecnologo = async function(id) {
+    try {
+        const docRef = doc(db, 'tecnologos', id);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+            alert('Tecnólogo no encontrado');
+            return;
+        }
+        const data = docSnap.data();
+        document.getElementById('editTecId').value = id;
+        document.getElementById('editTecDNI').value = data.dni || '';
+        document.getElementById('editTecNombre').value = data.nombre || '';
+        document.getElementById('editTecClave').value = '';
+        document.getElementById('modalEditarTecnologo').classList.add('active');
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+};
+
+window.guardarEdicionTecnologo = async function() {
+    const id = document.getElementById('editTecId').value;
+    const dni = document.getElementById('editTecDNI').value.trim();
+    const nombre = document.getElementById('editTecNombre').value.trim();
+    const clave = document.getElementById('editTecClave').value;
+
+    if (!dni || !nombre) {
+        alert('DNI y nombre son obligatorios');
+        return;
+    }
+
+    try {
+        const updates = { dni: dni, nombre: nombre };
+        if (clave && clave.trim() !== '') {
+            updates.clave = clave;
+        }
+        await updateDoc(doc(db, 'tecnologos', id), updates);
+        alert('✅ Tecnólogo actualizado correctamente');
+        cerrarModalEditar();
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
 };
 
 // ==================== PAGINA: REGISTRAR ====================
@@ -524,6 +708,7 @@ if (formSolicitud) {
                 dniPaciente: dni,
                 nombrePaciente: document.getElementById('nombrePaciente').value || '',
                 servicio: document.getElementById('servicio').value,
+                numeroCama: document.getElementById('numeroCama').value || '',
                 solicitadoPor: document.getElementById('solicitadoPor').value || '',
                 notas: document.getElementById('notas').value || '',
                 archivoSolicitud: archivoUrl,
@@ -627,6 +812,9 @@ if (formConsulta) {
                 if (data.servicio) {
                     html += '<p><strong>🏥 Servicio:</strong> ' + data.servicio + '</p>';
                 }
+                if (data.numeroCama) {
+                    html += '<p><strong>🛏️ Cama/Ubicación:</strong> ' + data.numeroCama + '</p>';
+                }
                 html += infoProgramado;
                 html += '<p><strong>⚡ Estado actual:</strong> <span class="estado-' + data.estado + '">' + estadosLabels[data.estado] + '</span></p>';
                 if (data.tecnologoAsignado) {
@@ -689,7 +877,7 @@ if (formLogin) {
 // ==================== PAGINA: DASHBOARD ====================
 
 const listaCards = document.getElementById('listaSolicitudes');
-let estadoFiltro = 'todos';
+let estadoFiltro = 'pendiente';
 let fechaFiltro = '';
 let solicitudesAnteriores = new Set();
 
@@ -736,7 +924,13 @@ function crearCardSolicitud(sol) {
     }
     let servicioHTML = '';
     if (data.servicio) {
-        servicioHTML = '<div class="info-row"><span>🏥 ' + data.servicio + '</span></div>';
+        servicioHTML = '<div class="info-row"><span>🏥 ' + data.servicio + '</span>';
+        if (data.numeroCama) {
+            servicioHTML += '<span>🛏️ ' + data.numeroCama + '</span>';
+        }
+        servicioHTML += '</div>';
+    } else if (data.numeroCama) {
+        servicioHTML = '<div class="info-row"><span>🛏️ ' + data.numeroCama + '</span></div>';
     }
     let archivoHTML = '';
     if (data.archivoSolicitud) {
@@ -854,7 +1048,7 @@ if (formCrearTecnologo) {
             let html = '';
             snapshot.forEach((docSnap) => {
                 const t = docSnap.data();
-                html += '<div class="tecnologo-item"><span><strong>' + t.nombre + '</strong> (DNI: ' + t.dni + ')</span><button onclick="eliminarTecnologo(\'' + docSnap.id + '\')" class="btn-eliminar">🗑️</button></div>';
+                html += '<div class="tecnologo-item"><span><strong>' + t.nombre + '</strong> (DNI: ' + t.dni + ')</span><div><button onclick="abrirModalEditarTecnologo(\'' + docSnap.id + '\')" class="btn-eliminar" style="background: #e3f2fd; color: #1976d2; margin-right: 5px;">✏️</button><button onclick="eliminarTecnologo(\'' + docSnap.id + '\')" class="btn-eliminar">🗑️</button></div></div>';
             });
             const lista = document.getElementById('listaTecnologos');
             if (lista) lista.innerHTML = html || '<p class="empty">No hay tecnologos registrados</p>';
@@ -921,6 +1115,9 @@ window.cargarSolicitudesAdmin = function() {
             html += '<span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>';
             if (data.servicio) {
                 html += '<span class="servicio-badge">🏥 ' + data.servicio + '</span>';
+            }
+            if (data.numeroCama) {
+                html += '<span class="servicio-badge">🛏️ ' + data.numeroCama + '</span>';
             }
             html += '</div>';
             html += '<span class="estado-badge ' + data.estado + '">' + estadosLabels[data.estado] + '</span>';

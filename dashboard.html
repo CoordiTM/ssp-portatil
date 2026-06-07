@@ -5,10 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - HNASS</title>
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- jsPDF + autoTable para exportar PDFs -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <header class="header-main">
+        <header class="header-main" >
+            <div class="menu-hamburger" onclick="toggleMenu()">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="index.html">🏠 Volver al inicio</a>
+                <a href="#" onclick="localStorage.clear(); window.location.href='index.html'; return false;">🚪 Cerrar sesión</a>
+            </div>
             <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
             <p id="userInfo">Tecnólogo: <span id="nombreTecnologo">-</span></p>
             <div style="margin-top: 10px; color: #a8d5ff; font-size: 0.85rem;">
@@ -25,7 +36,7 @@
             </div>
 
             <div class="filtro-botones">
-                <button onclick="filtrarEstado('pendiente')" class="btn-filtro btn-pendiente" id="btn-pendiente">
+                <button onclick="filtrarEstado('pendiente')" class="btn-filtro btn-pendiente active" id="btn-pendiente">
                     ⏳ <span class="badge" id="countPendiente">0</span>
                 </button>
                 <button onclick="filtrarEstado('en_camino')" class="btn-filtro btn-camino" id="btn-camino">
@@ -37,20 +48,28 @@
                 <button onclick="filtrarEstado('finalizado')" class="btn-filtro btn-finalizado" id="btn-finalizado">
                     ✅ <span class="badge" id="countFinalizado">0</span>
                 </button>
-                <button onclick="filtrarEstado('todos')" class="btn-filtro btn-todos active" id="btn-todos">
+                <button onclick="filtrarEstado('todos')" class="btn-filtro btn-todos" id="btn-todos">
                     📋
                 </button>
             </div>
         </section>
 
+        <!-- EXPORTAR PRODUCCIÓN -->
         <section class="card">
-            <h2 id="tituloLista">📋 Todas</h2>
+            <h2>📄 Exportar Mi Producción</h2>
+            <div class="form-group">
+                <label>Seleccionar fecha:</label>
+                <input type="date" id="fechaProduccionTec">
+            </div>
+            <button onclick="exportarProduccionPDF()" class="btn-primary" style="background: linear-gradient(135deg, #c0392b 0%, #e74c3c 100%);">📄 Exportar Producción a PDF</button>
+        </section>
+
+        <section class="card">
+            <h2 id="tituloLista">📋 Pendientes</h2>
             <div id="listaSolicitudes" class="lista-cards">
                 <p class="empty">Cargando...</p>
             </div>
         </section>
-
-        <a href="index.html" class="btn-volver" onclick="localStorage.clear()">← Cerrar sesión</a>
 
         <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
             <p>© 2026 HNASS - Todos los derechos reservados</p>
@@ -58,5 +77,15 @@
     </div>
 
     <script type="module" src="app.js"></script>
+    <script>
+        function toggleMenu() {
+            document.getElementById('dropdownMenu').classList.toggle('active');
+        }
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.menu-hamburger') && !e.target.closest('.dropdown-menu')) {
+                document.getElementById('dropdownMenu').classList.remove('active');
+            }
+        });
+    </script>
 </body>
 </html>
