@@ -789,12 +789,13 @@ body {
     transition: transform 0.3s;
 }
 .acordeon-body {
-    max-height: 500px;
-    overflow: hidden;
+    max-height: 80vh;
+    overflow-y: auto;
     transition: max-height 0.3s ease-out;
 }
 .acordeon-body.collapsed {
     max-height: 0;
+    overflow-y: hidden;
 }
 .acordeon-body.collapsed + .acordeon-icon,
 .acordeon-header:has(+ .collapsed) .acordeon-icon {
