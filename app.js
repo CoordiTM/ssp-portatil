@@ -225,7 +225,7 @@ function formatearMinutosAHHMMSS(minutosDecimales) {
 }
 
 function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado) {
-    if (estado === 'finalizado' && timestampFinalizado) {
+    if (estado === 'atendido' && timestampFinalizado) {
         const inicio = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
         const fin = timestampFinalizado.toDate ? timestampFinalizado.toDate() : new Date(timestampFinalizado);
         const diff = Math.floor((fin - inicio) / 1000);
@@ -262,7 +262,7 @@ function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinaliza
 }
 
 function colorAlerta(data) {
-    if (!data.timestamps || !data.timestamps.creado || data.estado === 'finalizado' || data.estado === 'rechazado') return '';
+    if (!data.timestamps || !data.timestamps.creado || data.estado === 'atendido' || data.estado === 'rechazado') return '';
     const ahora = new Date();
     let inicio;
     if (data.horaProgramada) {
@@ -297,7 +297,7 @@ window.cambiarEstado = async function(id, nuevoEstado) {
         updates['timestamps.enCamino'] = now;
         updates['tecnologoAsignado'] = tecnologo;
     }
-    if (nuevoEstado === 'finalizado') updates['timestamps.finalizado'] = now;
+    if (nuevoEstado === 'atendido') updates['timestamps.finalizado'] = now;
     try {
         await updateDoc(doc(db, 'solicitudes', id), updates);
     } catch (error) {
@@ -401,7 +401,7 @@ window.filtrarEstado = function(estado) {
         'pendiente': '⏳ Pendientes',
         'en_camino': '🚶 En camino',
         'rechazado': '❌ No atendidas',
-        'finalizado': '✅ Atendidas'
+        'atendido': '✅ Atendidas'
     };
     // Activar visualmente el botón pendiente por default
     const btnPendiente = document.getElementById('btn-pendiente');
@@ -459,7 +459,7 @@ window.generarReporte = async function() {
                 historialNotas: d.historialNotas || [],
                 motivoRechazo: d.motivoRechazo || ''
             });
-            if (d.estado === 'finalizado') {
+            if (d.estado === 'atendido') {
                 atendidos++;
             } else if (d.estado === 'rechazado') {
                 rechazados++;
@@ -526,7 +526,7 @@ window.exportarPDF = function() {
 
     let atendidos = 0, rechazados = 0, pendientes = 0;
     window.datosReporte.forEach(s => {
-        if (s.estado === 'finalizado') atendidos++;
+        if (s.estado === 'atendido') atendidos++;
         else if (s.estado === 'rechazado') rechazados++;
         else pendientes++;
     });
@@ -577,7 +577,7 @@ window.exportarProduccionPDF = async function() {
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const fechaCreado = d.timestamps?.creado?.toDate();
-        if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta && d.estado === 'finalizado') {
+        if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta && d.estado === 'atendido') {
             let tiempoAtencion = '-';
             if (d.timestamps.creado && d.timestamps.finalizado) {
                 const diffSeg = (d.timestamps.finalizado.toDate() - d.timestamps.creado.toDate()) / 1000;
@@ -585,6 +585,7 @@ window.exportarProduccionPDF = async function() {
             }
             produccion.push({
                 fechaHora: formatearFechaHora(d.timestamps?.creado),
+                timestampMs: d.timestamps?.creado?.toDate ? d.timestamps.creado.toDate().getTime() : new Date(d.timestamps?.creado).getTime(),
                 dni: d.dniPaciente,
                 paciente: d.nombrePaciente,
                 servicio: d.servicio || '-',
@@ -596,12 +597,12 @@ window.exportarProduccionPDF = async function() {
     });
 
     if (produccion.length === 0) {
-        alert('No hay atenciones finalizadas en este rango de fechas');
+        alert('No hay atenciones atendidas en este rango de fechas');
         return;
     }
 
     // Ordenar por fecha descendente manualmente (evita índice compuesto en Firestore)
-    produccion.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
+    produccion.sort((a, b) => b.timestampMs - a.timestampMs);
 
     const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
     pdf.setFontSize(16);
@@ -736,7 +737,7 @@ if (formSolicitud) {
                 timestamps: {
                     creado: serverTimestamp(),
                     enCamino: null,
-                    finalizado: null,
+                    atendido: null,
                     rechazado: null
                 },
                 tecnologoAsignado: null,
@@ -783,7 +784,7 @@ if (formConsulta) {
                     'pendiente': '⏳ Pendiente',
                     'en_camino': '🚶 En camino',
                     'rechazado': '❌ No atendido',
-                    'finalizado': '✅ Atendido'
+                    'atendido': '✅ Atendido'
                 };
                 let infoProgramado = '';
                 if (data.esProgramado && data.horaProgramada) {
@@ -806,7 +807,7 @@ if (formConsulta) {
                     estadosLines.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
                 }
                 if (data.timestamps && data.timestamps.finalizado) {
-                    estadosLines.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
+                    estadosLines.push('✅ Atendido: ' + formatearFechaHora(data.timestamps.finalizado));
                 }
                 if (data.timestamps && data.timestamps.rechazado) {
                     estadosLines.push('❌ No atendido: ' + formatearFechaHora(data.timestamps.rechazado));
@@ -835,7 +836,7 @@ if (formConsulta) {
                 html += infoProgramado;
                 html += '<p><strong>⚡ Estado actual:</strong> <span class="estado-' + data.estado + '">' + estadosLabels[data.estado] + '</span></p>';
                 if (data.tecnologoAsignado) {
-                    html += '<p><strong>☢️  Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
+                    html += '<p><strong>🔬 Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
                 }
                 if (data.motivoRechazo) {
                     html += '<p><strong>❌ Motivo no atencion:</strong> ' + data.motivoRechazo + '</p>';
@@ -930,7 +931,7 @@ function crearCardSolicitud(sol) {
     } else if (data.estado === 'rechazado') {
         estadoBadge = '<span class="estado-badge rechazado">❌ NO ATENDIDO</span>';
         acciones = '<button onclick="revertirRechazo(\'' + id + '\')" class="btn-action revertir">↩️ REVERTIR</button><p class="motivo">Motivo: ' + (data.motivoRechazo || 'No especificado') + '</p>';
-    } else if (data.estado === 'finalizado') {
+    } else if (data.estado === 'atendido') {
         estadoBadge = '<span class="estado-badge finalizado">✅ ATENDIDO</span>';
         acciones = '<span class="completado">Completado</span>';
     }
@@ -963,7 +964,7 @@ function cargarSolicitudes() {
     const q = query(collection(db, 'solicitudes'));
     unsubscribe = onSnapshot(q, (snapshot) => {
         let html = '';
-        let counts = { pendiente: 0, en_camino: 0, rechazado: 0, finalizado: 0 };
+        let counts = { pendiente: 0, en_camino: 0, rechazado: 0, atendido: 0 };
         let nuevasSolicitudes = 0;
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
@@ -1120,7 +1121,7 @@ window.cargarSolicitudesAdmin = function() {
                 'pendiente': '⏳ Pendiente',
                 'en_camino': '🚶 En camino',
                 'rechazado': '❌ No atendido',
-                'finalizado': '✅ Atendido'
+                'atendido': '✅ Atendido'
             };
             const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
                 day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
@@ -1141,7 +1142,7 @@ window.cargarSolicitudesAdmin = function() {
             html += '</div>';
             html += '<div class="card-info">';
             html += '<div class="info-row"><span>🕐 ' + fecha + '</span></div>';
-            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>☢️  ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
+            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
             if (data.motivoRechazo) {
                 html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
             }
