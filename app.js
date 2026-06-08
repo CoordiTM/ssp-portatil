@@ -225,21 +225,28 @@ function formatearMinutosAHHMMSS(minutosDecimales) {
 }
 
 function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado) {
-    if (estado === 'finalizado' && timestampFinalizado) {
-        const inicio = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        const fin = timestampFinalizado.toDate ? timestampFinalizado.toDate() : new Date(timestampFinalizado);
-        const diff = Math.floor((fin - inicio) / 1000);
-        if (diff < 60) return '✅ ' + diff + 's total';
-        if (diff < 3600) return '✅ ' + Math.floor(diff/60) + 'm total';
-        return '✅ ' + Math.floor(diff/3600) + 'h ' + Math.floor((diff%3600)/60) + 'm total';
+    if (estado === 'finalizado') {
+        if (timestampFinalizado) {
+            const inicio = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            const fin = timestampFinalizado.toDate ? timestampFinalizado.toDate() : new Date(timestampFinalizado);
+            const diff = Math.floor((fin - inicio) / 1000);
+            if (diff < 60) return '✅ ' + diff + 's total';
+            if (diff < 3600) return '✅ ' + Math.floor(diff/60) + 'm total';
+            return '✅ ' + Math.floor(diff/3600) + 'h ' + Math.floor((diff%3600)/60) + 'm total';
+        }
+        // Estado finalizado pero sin timestamp de finalización
+        return '✅ Completado';
     }
-    if (estado === 'rechazado' && timestampRechazado) {
-        const inicio = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-        const fin = timestampRechazado.toDate ? timestampRechazado.toDate() : new Date(timestampRechazado);
-        const diff = Math.floor((fin - inicio) / 1000);
-        if (diff < 60) return '❌ ' + diff + 's total';
-        if (diff < 3600) return '❌ ' + Math.floor(diff/60) + 'm total';
-        return '❌ ' + Math.floor(diff/3600) + 'h ' + Math.floor((diff%3600)/60) + 'm total';
+    if (estado === 'rechazado') {
+        if (timestampRechazado) {
+            const inicio = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            const fin = timestampRechazado.toDate ? timestampRechazado.toDate() : new Date(timestampRechazado);
+            const diff = Math.floor((fin - inicio) / 1000);
+            if (diff < 60) return '❌ ' + diff + 's total';
+            if (diff < 3600) return '❌ ' + Math.floor(diff/60) + 'm total';
+            return '❌ ' + Math.floor(diff/3600) + 'h ' + Math.floor((diff%3600)/60) + 'm total';
+        }
+        return '❌ No atendido';
     }
     if (!timestamp) return '-';
     const ahora = new Date();
