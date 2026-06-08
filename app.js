@@ -678,6 +678,84 @@ window.guardarEdicionTecnologo = async function() {
     }
 };
 
+window.abrirModalEditarSolicitud = async function(id) {
+    try {
+        const docRef = doc(db, 'solicitudes', id);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+            alert('Solicitud no encontrada');
+            return;
+        }
+        const data = docSnap.data();
+        document.getElementById('editSolId').value = id;
+        document.getElementById('editSolDNI').value = data.dniPaciente || '';
+        document.getElementById('editSolNombre').value = data.nombrePaciente || '';
+        document.getElementById('editSolServicio').value = data.servicio || '';
+        document.getElementById('editSolCama').value = data.numeroCama || '';
+        document.getElementById('editSolSolicita').value = data.solicitadoPor || '';
+        document.getElementById('editSolNotas').value = data.notas || '';
+        document.getElementById('editSolEstado').value = data.estado || 'pendiente';
+        document.getElementById('editSolTecnologo').value = data.tecnologoAsignado || '';
+
+        // Convertir timestamps a formato datetime-local (YYYY-MM-DDTHH:MM)
+        const toLocalInput = (ts) => {
+            if (!ts) return '';
+            const d = ts.toDate ? ts.toDate() : new Date(ts);
+            return d.toISOString().slice(0, 16);
+        };
+        document.getElementById('editSolCreado').value = toLocalInput(data.timestamps?.creado);
+        document.getElementById('editSolEnCamino').value = toLocalInput(data.timestamps?.enCamino);
+        document.getElementById('editSolFinalizado').value = toLocalInput(data.timestamps?.finalizado);
+        document.getElementById('editSolRechazado').value = toLocalInput(data.timestamps?.rechazado);
+
+        document.getElementById('modalEditarSolicitud').classList.add('active');
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+};
+
+window.guardarEdicionSolicitud = async function() {
+    const id = document.getElementById('editSolId').value;
+    const creado = document.getElementById('editSolCreado').value;
+    const enCamino = document.getElementById('editSolEnCamino').value;
+    const finalizado = document.getElementById('editSolFinalizado').value;
+    const rechazado = document.getElementById('editSolRechazado').value;
+
+    const toTimestamp = (val) => val ? Timestamp.fromDate(new Date(val)) : null;
+
+    const updates = {
+        dniPaciente: document.getElementById('editSolDNI').value.trim(),
+        nombrePaciente: document.getElementById('editSolNombre').value.trim(),
+        servicio: document.getElementById('editSolServicio').value.trim(),
+        numeroCama: document.getElementById('editSolCama').value.trim(),
+        solicitadoPor: document.getElementById('editSolSolicita').value.trim(),
+        notas: document.getElementById('editSolNotas').value.trim(),
+        estado: document.getElementById('editSolEstado').value,
+        tecnologoAsignado: document.getElementById('editSolTecnologo').value.trim() || null,
+        'timestamps.creado': toTimestamp(creado),
+        'timestamps.enCamino': toTimestamp(enCamino),
+        'timestamps.finalizado': toTimestamp(finalizado),
+        'timestamps.rechazado': toTimestamp(rechazado)
+    };
+
+    // Si cambió a finalizado y no hay tecnólogo asignado, alertar
+    if (updates.estado === 'finalizado' && !updates.tecnologoAsignado) {
+        if (!confirm('Estado es FINALIZADO pero no hay tecnólogo asignado. ¿Continuar?')) return;
+    }
+
+    try {
+        await updateDoc(doc(db, 'solicitudes', id), updates);
+        alert('✅ Solicitud actualizada correctamente');
+        cerrarModalEditarSolicitud();
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+};
+
+window.cerrarModalEditarSolicitud = function() {
+    document.getElementById('modalEditarSolicitud').classList.remove('active');
+};
+
 window.toggleAcordeon = function(id) {
     const el = document.getElementById(id);
     const icon = document.getElementById(id.replace('Acordeon', 'Icon'));
@@ -1157,6 +1235,7 @@ window.cargarSolicitudesAdmin = function() {
                 html += '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + esPDF + ' - Ver solicitud</a></div>';
             }
             html += '<div class="admin-actions">';
+            html += '<button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
             html += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
             html += '<button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
             html += '</div>';

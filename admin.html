@@ -10,6 +10,27 @@
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        .modal-wide {
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .form-row {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .form-row .form-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .modal-content h4 {
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+            margin-top: 20px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -157,5 +178,89 @@
         }
     </script>
     <button class="btn-volver-arriba" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Volver arriba">↑</button>
+
+    <!-- Modal Editar Solicitud -->
+    <div class="modal-overlay" id="modalEditarSolicitud">
+        <div class="modal-content modal-wide">
+            <h3>✏️ Editar Solicitud</h3>
+            <input type="hidden" id="editSolId">
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>DNI Paciente:</label>
+                    <input type="text" id="editSolDNI" maxlength="8">
+                </div>
+                <div class="form-group">
+                    <label>Nombre Paciente:</label>
+                    <input type="text" id="editSolNombre">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Servicio:</label>
+                    <input type="text" id="editSolServicio">
+                </div>
+                <div class="form-group">
+                    <label>N° Cama / Ubicación:</label>
+                    <input type="text" id="editSolCama">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Solicitado por:</label>
+                    <input type="text" id="editSolSolicita">
+                </div>
+                <div class="form-group">
+                    <label>Tecnólogo Médico Asignado:</label>
+                    <input type="text" id="editSolTecnologo">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Estado:</label>
+                <select id="editSolEstado">
+                    <option value="pendiente">⏳ Pendiente</option>
+                    <option value="en_camino">🚶 En camino</option>
+                    <option value="finalizado">✅ Atendido</option>
+                    <option value="rechazado">❌ No atendido</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Notas / Observaciones:</label>
+                <textarea id="editSolNotas" rows="2"></textarea>
+            </div>
+
+            <h4 style="margin-top: 15px; color: #1a5276;">🕐 Timestamps (Fechas/Hora)</h4>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Creado:</label>
+                    <input type="datetime-local" id="editSolCreado">
+                </div>
+                <div class="form-group">
+                    <label>En camino:</label>
+                    <input type="datetime-local" id="editSolEnCamino">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Finalizado:</label>
+                    <input type="datetime-local" id="editSolFinalizado">
+                </div>
+                <div class="form-group">
+                    <label>Rechazado:</label>
+                    <input type="datetime-local" id="editSolRechazado">
+                </div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="btn-guardar" onclick="guardarEdicionSolicitud()">💾 Guardar Cambios</button>
+                <button class="btn-cancelar" onclick="cerrarModalEditarSolicitud()">❌ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
