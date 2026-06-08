@@ -1165,12 +1165,27 @@ if (formCrearTecnologo) {
         const select = document.getElementById('tecnologoFiltro');
         if (!select) return;
         try {
-            const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
-            const snapshot = await getDocs(q);
-            console.log('Tecnólogos cargados para select:', snapshot.size);
-            select.innerHTML = '<option value="">Seleccionar...</option>';
+            // Sin orderBy para evitar que documentos sin 'nombre' sean excluidos
+            const snapshot = await getDocs(collection(db, 'tecnologos'));
+            console.log('=== DIAGNÓSTICO TECNÓLOGOS ===');
+            console.log('Total documentos en colección tecnologos:', snapshot.size);
+
+            let tecnologos = [];
             snapshot.forEach((docSnap) => {
                 const t = docSnap.data();
+                console.log('Doc ID:', docSnap.id, 'Datos:', {nombre: t.nombre, dni: t.dni});
+                if (t.nombre) {
+                    tecnologos.push({nombre: t.nombre, dni: t.dni || '-'});
+                }
+            });
+
+            // Ordenar manualmente por nombre
+            tecnologos.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+            console.log('Tecnólogos con nombre válido:', tecnologos.length);
+
+            select.innerHTML = '<option value="">Seleccionar...</option>';
+            tecnologos.forEach((t) => {
                 const option = document.createElement('option');
                 option.value = t.nombre;
                 option.textContent = t.nombre + ' (DNI: ' + t.dni + ')';
