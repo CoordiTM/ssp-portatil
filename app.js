@@ -553,22 +553,27 @@ window.exportarPDF = function() {
 };
 
 window.exportarProduccionPDF = async function() {
-    const desde = document.getElementById('fechaDesdeProd').value;
-    const hasta = document.getElementById('fechaHastaProd').value;
+    const desdeInput = document.getElementById('fechaDesdeProd').value;
+    const hastaInput = document.getElementById('fechaHastaProd').value;
 
-    if (!desde || !hasta) {
+    if (!desdeInput || !hastaInput) {
         alert('Selecciona fecha Desde y Hasta');
         return;
     }
+
+    // Parsear fecha en formato YYYY-MM-DD (input type=date)
+    const desdeParts = desdeInput.split('-');
+    const hastaParts = hastaInput.split('-');
+    const fechaDesde = new Date(parseInt(desdeParts[0]), parseInt(desdeParts[1]) - 1, parseInt(desdeParts[2]), 0, 0, 0);
+    const fechaHasta = new Date(parseInt(hastaParts[0]), parseInt(hastaParts[1]) - 1, parseInt(hastaParts[2]), 23, 59, 59);
+
+    console.log('Rango parseado:', fechaDesde, 'a', fechaHasta);
 
     const tecnologoNombre = localStorage.getItem('tecnologoNombre');
     if (!tecnologoNombre) {
         alert('No hay tecnologo medico logueado');
         return;
     }
-
-    const fechaDesde = new Date(desde + 'T00:00:00');
-    const fechaHasta = new Date(hasta + 'T23:59:59');
 
     const q = query(collection(db, 'solicitudes'), where('tecnologoAsignado', '==', tecnologoNombre));
     const snapshot = await getDocs(q);
