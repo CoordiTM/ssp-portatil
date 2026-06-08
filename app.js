@@ -596,6 +596,7 @@ window.exportarProduccionPDF = async function() {
         }
     });
 
+    console.log('Total en producción:', produccion.length);
     if (produccion.length === 0) {
         alert('No hay atenciones atendidas en este rango de fechas');
         return;
