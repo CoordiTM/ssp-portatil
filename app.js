@@ -225,7 +225,7 @@ function formatearMinutosAHHMMSS(minutosDecimales) {
 }
 
 function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado) {
-    if (estado === 'atendido' && timestampFinalizado) {
+    if (estado === 'finalizado' && timestampFinalizado) {
         const inicio = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
         const fin = timestampFinalizado.toDate ? timestampFinalizado.toDate() : new Date(timestampFinalizado);
         const diff = Math.floor((fin - inicio) / 1000);
@@ -297,7 +297,7 @@ window.cambiarEstado = async function(id, nuevoEstado) {
         updates['timestamps.enCamino'] = now;
         updates['tecnologoAsignado'] = tecnologo;
     }
-    if (nuevoEstado === 'atendido') updates['timestamps.finalizado'] = now;
+    if (nuevoEstado === 'finalizado') updates['timestamps.finalizado'] = now;
     try {
         await updateDoc(doc(db, 'solicitudes', id), updates);
     } catch (error) {
@@ -401,7 +401,7 @@ window.filtrarEstado = function(estado) {
         'pendiente': '⏳ Pendientes',
         'en_camino': '🚶 En camino',
         'rechazado': '❌ No atendidas',
-        'atendido': '✅ Atendidas'
+        'finalizado': '✅ Atendidas'
     };
     // Activar visualmente el botón pendiente por default
     const btnPendiente = document.getElementById('btn-pendiente');
@@ -421,11 +421,6 @@ window.generarReporte = async function() {
     const tipoReporte = document.getElementById('tipoReporte')?.value || 'general';
     const tecnologoFiltro = document.getElementById('tecnologoFiltro')?.value || '';
     const contenedor = document.getElementById('resultadoReporte');
-
-    console.log('=== DEBUG generarReporte ===');
-    console.log('Desde:', desde, 'Hasta:', hasta);
-    console.log('Tipo:', tipoReporte, 'Tecnologo:', tecnologoFiltro);
-
     if (!desde || !hasta) {
         alert('Selecciona fechas desde y hasta');
         return;
@@ -477,8 +472,6 @@ window.generarReporte = async function() {
         ? (tiemposAtencion.reduce((a,b) => a+b, 0) / tiemposAtencion.length)
         : 0;
     const tiempoPromedio = formatearMinutosAHHMMSS(tiempoPromedioSeg);
-
-    console.log('Resultado:', {total, atendidos, rechazados, pendientes, tiempoPromedio});
 
     let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Médico</th><th>Tiempo Atencion</th><th>Notas</th></tr></thead><tbody>';
     solicitudes.forEach(s => {
@@ -560,27 +553,22 @@ window.exportarPDF = function() {
 };
 
 window.exportarProduccionPDF = async function() {
-    const desdeInput = document.getElementById('fechaDesdeProd').value;
-    const hastaInput = document.getElementById('fechaHastaProd').value;
+    const desde = document.getElementById('fechaDesdeProd').value;
+    const hasta = document.getElementById('fechaHastaProd').value;
 
-    if (!desdeInput || !hastaInput) {
+    if (!desde || !hasta) {
         alert('Selecciona fecha Desde y Hasta');
         return;
     }
-
-    // Parsear fecha en formato YYYY-MM-DD (input type=date)
-    const desdeParts = desdeInput.split('-');
-    const hastaParts = hastaInput.split('-');
-    const fechaDesde = new Date(parseInt(desdeParts[0]), parseInt(desdeParts[1]) - 1, parseInt(desdeParts[2]), 0, 0, 0);
-    const fechaHasta = new Date(parseInt(hastaParts[0]), parseInt(hastaParts[1]) - 1, parseInt(hastaParts[2]), 23, 59, 59);
-
-    console.log('Rango parseado:', fechaDesde, 'a', fechaHasta);
 
     const tecnologoNombre = localStorage.getItem('tecnologoNombre');
     if (!tecnologoNombre) {
         alert('No hay tecnologo medico logueado');
         return;
     }
+
+    const fechaDesde = new Date(desde + 'T00:00:00');
+    const fechaHasta = new Date(hasta + 'T23:59:59');
 
     const q = query(collection(db, 'solicitudes'), where('tecnologoAsignado', '==', tecnologoNombre));
     const snapshot = await getDocs(q);
@@ -597,7 +585,6 @@ window.exportarProduccionPDF = async function() {
             }
             produccion.push({
                 fechaHora: formatearFechaHora(d.timestamps?.creado),
-                timestampMs: d.timestamps?.creado?.toDate ? d.timestamps.creado.toDate().getTime() : new Date(d.timestamps?.creado).getTime(),
                 dni: d.dniPaciente,
                 paciente: d.nombrePaciente,
                 servicio: d.servicio || '-',
@@ -608,14 +595,13 @@ window.exportarProduccionPDF = async function() {
         }
     });
 
-    console.log('Total en producción:', produccion.length);
     if (produccion.length === 0) {
-        alert('No hay atenciones atendidas en este rango de fechas');
+        alert('No hay atenciones finalizadas en este rango de fechas');
         return;
     }
 
     // Ordenar por fecha descendente manualmente (evita índice compuesto en Firestore)
-    produccion.sort((a, b) => b.timestampMs - a.timestampMs);
+    produccion.sort((a, b) => new Date(b.fechaHora) - new Date(a.fechaHora));
 
     const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
     pdf.setFontSize(16);
@@ -750,7 +736,7 @@ if (formSolicitud) {
                 timestamps: {
                     creado: serverTimestamp(),
                     enCamino: null,
-                    atendido: null,
+                    finalizado: null,
                     rechazado: null
                 },
                 tecnologoAsignado: null,
@@ -820,7 +806,7 @@ if (formConsulta) {
                     estadosLines.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
                 }
                 if (data.timestamps && data.timestamps.finalizado) {
-                    estadosLines.push('✅ Atendido: ' + formatearFechaHora(data.timestamps.finalizado));
+                    estadosLines.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
                 }
                 if (data.timestamps && data.timestamps.rechazado) {
                     estadosLines.push('❌ No atendido: ' + formatearFechaHora(data.timestamps.rechazado));
@@ -847,9 +833,9 @@ if (formConsulta) {
                     html += '<p><strong>🛏️ Cama/Ubicación:</strong> ' + data.numeroCama + '</p>';
                 }
                 html += infoProgramado;
-                html += '<p><strong>⚡ Estado actual:</strong> <span class="estado-' + data.estado + '">' + estadoLabel + '</span></p>';
+                html += '<p><strong>⚡ Estado actual:</strong> <span class="estado-' + data.estado + '">' + estadosLabels[data.estado] + '</span></p>';
                 if (data.tecnologoAsignado) {
-                    html += '<p><strong>🔬 Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
+                    html += '<p><strong>☢️  Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
                 }
                 if (data.motivoRechazo) {
                     html += '<p><strong>❌ Motivo no atencion:</strong> ' + data.motivoRechazo + '</p>';
@@ -977,7 +963,7 @@ function cargarSolicitudes() {
     const q = query(collection(db, 'solicitudes'));
     unsubscribe = onSnapshot(q, (snapshot) => {
         let html = '';
-        let counts = { pendiente: 0, en_camino: 0, rechazado: 0, atendido: 0 };
+        let counts = { pendiente: 0, en_camino: 0, rechazado: 0, finalizado: 0 };
         let nuevasSolicitudes = 0;
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
@@ -1136,7 +1122,6 @@ window.cargarSolicitudesAdmin = function() {
                 'rechazado': '❌ No atendido',
                 'finalizado': '✅ Atendido'
             };
-            const estadoLabel = estadoLabel || ('⚠️ ' + (data.estado || 'Sin estado'));
             const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
                 day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
             }) || '-';
@@ -1152,11 +1137,11 @@ window.cargarSolicitudesAdmin = function() {
                 html += '<span class="servicio-badge">🛏️ ' + data.numeroCama + '</span>';
             }
             html += '</div>';
-            html += '<span class="estado-badge ' + data.estado + '">' + estadoLabel + '</span>';
+            html += '<span class="estado-badge ' + data.estado + '">' + estadosLabels[data.estado] + '</span>';
             html += '</div>';
             html += '<div class="card-info">';
             html += '<div class="info-row"><span>🕐 ' + fecha + '</span></div>';
-            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
+            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>☢️  ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
             if (data.motivoRechazo) {
                 html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
             }
