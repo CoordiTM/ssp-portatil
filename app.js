@@ -1161,11 +1161,13 @@ if (formCrearTecnologo) {
         }
     };
     cargarTecnologos();
-    function cargarTecnologosSelect() {
+    async function cargarTecnologosSelect() {
         const select = document.getElementById('tecnologoFiltro');
         if (!select) return;
-        const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
-        onSnapshot(q, (snapshot) => {
+        try {
+            const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
+            const snapshot = await getDocs(q);
+            console.log('Tecnólogos cargados para select:', snapshot.size);
             select.innerHTML = '<option value="">Seleccionar...</option>';
             snapshot.forEach((docSnap) => {
                 const t = docSnap.data();
@@ -1174,7 +1176,9 @@ if (formCrearTecnologo) {
                 option.textContent = t.nombre + ' (DNI: ' + t.dni + ')';
                 select.appendChild(option);
             });
-        });
+        } catch (error) {
+            console.error('Error cargando tecnólogos para select:', error);
+        }
     }
     cargarTecnologosSelect();
 }
