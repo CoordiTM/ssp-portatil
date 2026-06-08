@@ -262,7 +262,7 @@ function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinaliza
 }
 
 function colorAlerta(data) {
-    if (!data.timestamps || !data.timestamps.creado || data.estado === 'atendido' || data.estado === 'rechazado') return '';
+    if (!data.timestamps || !data.timestamps.creado || data.estado === 'finalizado' || data.estado === 'rechazado') return '';
     const ahora = new Date();
     let inicio;
     if (data.horaProgramada) {
@@ -421,6 +421,11 @@ window.generarReporte = async function() {
     const tipoReporte = document.getElementById('tipoReporte')?.value || 'general';
     const tecnologoFiltro = document.getElementById('tecnologoFiltro')?.value || '';
     const contenedor = document.getElementById('resultadoReporte');
+
+    console.log('=== DEBUG generarReporte ===');
+    console.log('Desde:', desde, 'Hasta:', hasta);
+    console.log('Tipo:', tipoReporte, 'Tecnologo:', tecnologoFiltro);
+
     if (!desde || !hasta) {
         alert('Selecciona fechas desde y hasta');
         return;
@@ -459,7 +464,7 @@ window.generarReporte = async function() {
                 historialNotas: d.historialNotas || [],
                 motivoRechazo: d.motivoRechazo || ''
             });
-            if (d.estado === 'atendido') {
+            if (d.estado === 'finalizado') {
                 atendidos++;
             } else if (d.estado === 'rechazado') {
                 rechazados++;
@@ -472,6 +477,8 @@ window.generarReporte = async function() {
         ? (tiemposAtencion.reduce((a,b) => a+b, 0) / tiemposAtencion.length)
         : 0;
     const tiempoPromedio = formatearMinutosAHHMMSS(tiempoPromedioSeg);
+
+    console.log('Resultado:', {total, atendidos, rechazados, pendientes, tiempoPromedio});
 
     let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Médico</th><th>Tiempo Atencion</th><th>Notas</th></tr></thead><tbody>';
     solicitudes.forEach(s => {
@@ -526,7 +533,7 @@ window.exportarPDF = function() {
 
     let atendidos = 0, rechazados = 0, pendientes = 0;
     window.datosReporte.forEach(s => {
-        if (s.estado === 'atendido') atendidos++;
+        if (s.estado === 'finalizado') atendidos++;
         else if (s.estado === 'rechazado') rechazados++;
         else pendientes++;
     });
@@ -582,7 +589,7 @@ window.exportarProduccionPDF = async function() {
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const fechaCreado = d.timestamps?.creado?.toDate();
-        if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta && d.estado === 'atendido') {
+        if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta && d.estado === 'finalizado') {
             let tiempoAtencion = '-';
             if (d.timestamps.creado && d.timestamps.finalizado) {
                 const diffSeg = (d.timestamps.finalizado.toDate() - d.timestamps.creado.toDate()) / 1000;
@@ -790,7 +797,7 @@ if (formConsulta) {
                     'pendiente': '⏳ Pendiente',
                     'en_camino': '🚶 En camino',
                     'rechazado': '❌ No atendido',
-                    'atendido': '✅ Atendido'
+                    'finalizado': '✅ Atendido'
                 };
                 let infoProgramado = '';
                 if (data.esProgramado && data.horaProgramada) {
@@ -840,7 +847,7 @@ if (formConsulta) {
                     html += '<p><strong>🛏️ Cama/Ubicación:</strong> ' + data.numeroCama + '</p>';
                 }
                 html += infoProgramado;
-                html += '<p><strong>⚡ Estado actual:</strong> <span class="estado-' + data.estado + '">' + estadosLabels[data.estado] + '</span></p>';
+                html += '<p><strong>⚡ Estado actual:</strong> <span class="estado-' + data.estado + '">' + estadoLabel + '</span></p>';
                 if (data.tecnologoAsignado) {
                     html += '<p><strong>🔬 Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
                 }
@@ -937,7 +944,7 @@ function crearCardSolicitud(sol) {
     } else if (data.estado === 'rechazado') {
         estadoBadge = '<span class="estado-badge rechazado">❌ NO ATENDIDO</span>';
         acciones = '<button onclick="revertirRechazo(\'' + id + '\')" class="btn-action revertir">↩️ REVERTIR</button><p class="motivo">Motivo: ' + (data.motivoRechazo || 'No especificado') + '</p>';
-    } else if (data.estado === 'atendido') {
+    } else if (data.estado === 'finalizado') {
         estadoBadge = '<span class="estado-badge finalizado">✅ ATENDIDO</span>';
         acciones = '<span class="completado">Completado</span>';
     }
@@ -1127,8 +1134,9 @@ window.cargarSolicitudesAdmin = function() {
                 'pendiente': '⏳ Pendiente',
                 'en_camino': '🚶 En camino',
                 'rechazado': '❌ No atendido',
-                'atendido': '✅ Atendido'
+                'finalizado': '✅ Atendido'
             };
+            const estadoLabel = estadoLabel || ('⚠️ ' + (data.estado || 'Sin estado'));
             const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
                 day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
             }) || '-';
@@ -1144,7 +1152,7 @@ window.cargarSolicitudesAdmin = function() {
                 html += '<span class="servicio-badge">🛏️ ' + data.numeroCama + '</span>';
             }
             html += '</div>';
-            html += '<span class="estado-badge ' + data.estado + '">' + estadosLabels[data.estado] + '</span>';
+            html += '<span class="estado-badge ' + data.estado + '">' + estadoLabel + '</span>';
             html += '</div>';
             html += '<div class="card-info">';
             html += '<div class="info-row"><span>🕐 ' + fecha + '</span></div>';
