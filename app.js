@@ -246,13 +246,16 @@ window.abrirKanteron = function(dni) {
     }).catch(err => {
         console.error('Error copiando DNI:', err);
     });
-    window.open('http://172.22.55.100:8080/kWebViewer/main.jsp?lang=es', '_blank');
+    window.open('http://172.22.55.100:8080/kWebViewer/', '_blank');
 };
 
-function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado) {
+function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado, esProgramado) {
+    // Para solicitudes programadas, el tiempo de atención cuenta desde la hora programada
+    const puntoInicio = (esProgramado && horaProgramada) ? horaProgramada : timestamp;
+
     if (estado === 'finalizado') {
         if (timestampFinalizado) {
-            const inicio = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
             const fin = timestampFinalizado.toDate ? timestampFinalizado.toDate() : new Date(timestampFinalizado);
             const diff = Math.floor((fin - inicio) / 1000);
             if (diff < 60) return '✅ ' + diff + 's total';
@@ -264,7 +267,7 @@ function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinaliza
     }
     if (estado === 'rechazado') {
         if (timestampRechazado) {
-            const inicio = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+            const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
             const fin = timestampRechazado.toDate ? timestampRechazado.toDate() : new Date(timestampRechazado);
             const diff = Math.floor((fin - inicio) / 1000);
             if (diff < 60) return '❌ ' + diff + 's total';
@@ -1015,7 +1018,7 @@ if (formConsulta) {
                 html += infoProgramado;
                 html += '<p><strong>⚡ Estado actual:</strong> <span class="estado-' + data.estado + '">' + estadosLabels[data.estado] + '</span></p>';
                 if (data.tecnologoAsignado) {
-                    html += '<p><strong>☢️ Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
+                    html += '<p><strong>🔬 Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
                 }
                 if (data.estado === 'finalizado' && data.dniPaciente) {
                     html += '<button onclick="abrirKanteron(\'' + data.dniPaciente + '\')" class="btn-primary" style="margin-top:10px; background: linear-gradient(135deg, #2e7d32 0%, #4caf50 100%);">🔍 Kanteron PACS</button>';
@@ -1085,7 +1088,7 @@ function crearCardSolicitud(sol) {
     const id = sol.id;
     const data = sol.data;
     const fechaHora = formatearFechaHora(data.timestamps?.creado);
-    const tiempo = tiempoTranscurrido(data.timestamps?.creado, data.horaProgramada, data.estado, data.timestamps?.finalizado, data.timestamps?.rechazado);
+    const tiempo = tiempoTranscurrido(data.timestamps?.creado, data.horaProgramada, data.estado, data.timestamps?.finalizado, data.timestamps?.rechazado, data.esProgramado);
     const alerta = colorAlerta(data);
     let acciones = '';
     let estadoBadge = '';
@@ -1380,7 +1383,7 @@ window.cargarSolicitudesAdmin = function() {
             html += '</div>';
             html += '<div class="card-info">';
             html += '<div class="info-row"><span>🕐 ' + fecha + '</span></div>';
-            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>☢️  ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
+            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
             if (data.motivoRechazo) {
                 html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
             }
