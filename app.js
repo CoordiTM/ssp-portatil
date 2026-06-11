@@ -246,7 +246,7 @@ window.abrirKanteron = function(dni) {
     }).catch(err => {
         console.error('Error copiando DNI:', err);
     });
-    window.open('http://172.22.55.100:8080/kWebViewer/', '_blank');
+    window.open('http://172.22.55.100:8080/kWebViewer/main.jsp?lang=es', '_blank');
 };
 
 function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado) {
