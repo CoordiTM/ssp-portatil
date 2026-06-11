@@ -1015,7 +1015,7 @@ if (formConsulta) {
                 html += infoProgramado;
                 html += '<p><strong>⚡ Estado actual:</strong> <span class="estado-' + data.estado + '">' + estadosLabels[data.estado] + '</span></p>';
                 if (data.tecnologoAsignado) {
-                    html += '<p><strong>🔬 Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
+                    html += '<p><strong>☢️ Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
                 }
                 if (data.estado === 'finalizado' && data.dniPaciente) {
                     html += '<button onclick="abrirKanteron(\'' + data.dniPaciente + '\')" class="btn-primary" style="margin-top:10px; background: linear-gradient(135deg, #2e7d32 0%, #4caf50 100%);">🔍 Kanteron PACS</button>';
@@ -1380,7 +1380,7 @@ window.cargarSolicitudesAdmin = function() {
             html += '</div>';
             html += '<div class="card-info">';
             html += '<div class="info-row"><span>🕐 ' + fecha + '</span></div>';
-            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
+            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>☢️  ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
             if (data.motivoRechazo) {
                 html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
             }
