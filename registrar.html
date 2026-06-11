@@ -33,7 +33,10 @@
                 </div>
                 <div class="form-group">
                     <label>Servicio que solicita: *</label>
-                    <input type="text" id="servicio" placeholder="Ej: Medicina, Cirugía, UCI, Emergencia" required>
+                    <select id="servicio" required>
+                        <option value="">Seleccionar servicio...</option>
+                    </select>
+                    <small>🏥 Selecciona el servicio del hospital</small>
                 </div>
                 <div class="form-group">
                     <label>N° de cama / Ubicación: *</label>
@@ -89,6 +92,12 @@
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.menu-hamburger') && !e.target.closest('.dropdown-menu')) {
                 document.getElementById('dropdownMenu').classList.remove('active');
+            }
+        });
+        // Cargar servicios en el select al iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof cargarServiciosSelect === 'function') {
+                cargarServiciosSelect('servicio');
             }
         });
     </script>

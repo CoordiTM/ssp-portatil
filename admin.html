@@ -65,6 +65,31 @@
             </div>
         </section>
 
+        <!-- Crear Servicio -->
+        <section class="card">
+            <h2>🏥 Crear Nuevo Servicio</h2>
+            <form id="formCrearServicio">
+                <div class="form-group">
+                    <label>Nombre del servicio:</label>
+                    <input type="text" id="servNombre" placeholder="Ej: Medicina, Cirugía, UCI, Emergencia" required>
+                </div>
+                <button type="submit" class="btn-primary">➕ Crear Servicio</button>
+            </form>
+        </section>
+
+        <!-- Lista de servicios -->
+        <section class="card">
+            <h2 class="acordeon-header" onclick="toggleAcordeon('servAcordeon')">
+                🏥 Servicios Registrados
+                <span class="acordeon-icon" id="servIcon">▼</span>
+            </h2>
+            <div id="servAcordeon" class="acordeon-body">
+                <div id="listaServicios" class="lista">
+                    <p class="empty">Cargando...</p>
+                </div>
+            </div>
+        </section>
+
         <!-- Crear Tecnólogo -->
         <section class="card">
             <h2>👤 Crear Nuevo Tecnólogo</h2>
@@ -140,6 +165,22 @@
             document.getElementById('grupoTecnologo').style.display = tipo === 'individual' ? 'block' : 'none';
         }
     </script>
+    <!-- Modal Editar Servicio -->
+    <div class="modal-overlay" id="modalEditarServicio">
+        <div class="modal-content">
+            <h3>✏️ Editar Servicio</h3>
+            <input type="hidden" id="editServId">
+            <div class="form-group">
+                <label>Nombre del servicio:</label>
+                <input type="text" id="editServNombre" required>
+            </div>
+            <div class="modal-buttons">
+                <button class="btn-guardar" onclick="guardarEdicionServicio()">💾 Guardar</button>
+                <button class="btn-cancelar" onclick="cerrarModalEditarServicio()">❌ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Modal Editar Tecnólogo -->
     <div class="modal-overlay" id="modalEditarTecnologo">
         <div class="modal-content">

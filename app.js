@@ -224,6 +224,31 @@ function formatearMinutosAHHMMSS(minutosDecimales) {
     return formatearTiempoHHMMSS(totalSegundos);
 }
 
+function limpiarNombreTecnologo(nombre) {
+    if (!nombre) return nombre;
+    const prefijos = ['Lic. ', 'Lic ', 'Dr. ', 'Dr ', 'Dra. ', 'Dra ', 'Ing. ', 'Ing '];
+    let limpio = nombre;
+    for (const prefijo of prefijos) {
+        if (limpio.startsWith(prefijo)) {
+            limpio = limpio.substring(prefijo.length);
+        }
+    }
+    return limpio.trim();
+}
+
+window.abrirKanteron = function(dni) {
+    if (!dni) {
+        alert('No hay DNI disponible');
+        return;
+    }
+    navigator.clipboard.writeText(dni).then(() => {
+        console.log('DNI copiado:', dni);
+    }).catch(err => {
+        console.error('Error copiando DNI:', err);
+    });
+    window.open('http://172.22.55.100:8080/kWebViewer/', '_blank');
+};
+
 function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado) {
     if (estado === 'finalizado') {
         if (timestampFinalizado) {
@@ -460,7 +485,7 @@ window.generarReporte = async function() {
                 numeroCama: d.numeroCama || '-',
                 solicitadoPor: d.solicitadoPor,
                 estado: d.estado,
-                tecnologo: d.tecnologoAsignado || 'Sin asignar',
+                tecnologo: limpiarNombreTecnologo(d.tecnologoAsignado) || 'Sin asignar',
                 tiempoAtencion: tiempoAtencion,
                 notas: d.notas || '',
                 historialNotas: d.historialNotas || [],
@@ -482,7 +507,7 @@ window.generarReporte = async function() {
 
     let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Médico</th><th>Tiempo Atencion</th><th>Notas</th></tr></thead><tbody>';
     solicitudes.forEach(s => {
-        tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + s.tecnologo + '</td><td>' + s.tiempoAtencion + '</td><td>' + s.notas + '</td></tr>';
+        tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + limpiarNombreTecnologo(s.tecnologo) + '</td><td>' + s.tiempoAtencion + '</td><td>' + s.notas + '</td></tr>';
     });
     tablaHTML += '</tbody></table>';
     contenedor.innerHTML = '<div class="card"><h3>📊 Reporte ' + (tipoReporte === 'individual' ? 'Individual' : 'General') + ' del ' + desde + ' al ' + hasta + '</h3><div class="stats-reporte"><div class="stat-box"><strong>Total:</strong> ' + total + '</div><div class="stat-box"><strong>Atendidas:</strong> ' + atendidos + '</div><div class="stat-box"><strong>No atendidas:</strong> ' + rechazados + '</div><div class="stat-box"><strong>Pendientes:</strong> ' + pendientes + '</div><div class="stat-box"><strong>Tiempo promedio:</strong> ' + tiempoPromedio + ' min</div></div>' +  '<h4>📋 Detalle:</h4>' + tablaHTML + '<button onclick="exportarExcel()" class="btn-primary" style="margin-top:15px;">📥 Exportar a Excel</button></div>';
@@ -528,7 +553,7 @@ window.exportarPDF = function() {
     pdf.setFontSize(10);
     pdf.text('Periodo: ' + desde + ' al ' + hasta, 14, 22);
     if (tipoReporte === 'individual' && tecnologoFiltro) {
-        pdf.text('Tecnologo Medico: ' + tecnologoFiltro, 14, 27);
+        pdf.text('Tecnologo Medico: ' + limpiarNombreTecnologo(tecnologoFiltro), 14, 27);
     }
 
     let atendidos = 0, rechazados = 0, pendientes = 0;
@@ -613,7 +638,7 @@ window.exportarProduccionPDF = async function() {
     pdf.setFontSize(16);
     pdf.text('Produccion del Tecnologo Medico - HNASS', 14, 15);
     pdf.setFontSize(11);
-    pdf.text('Tecnologo Medico: ' + tecnologoNombre, 14, 23);
+    pdf.text('Tecnologo Medico: ' + limpiarNombreTecnologo(tecnologoNombre), 14, 23);
     pdf.text('Periodo: ' + desdeInput + ' al ' + hastaInput, 14, 29);
     pdf.text('Total atenciones: ' + produccion.length, 14, 35);
 
@@ -763,6 +788,77 @@ window.toggleAcordeon = function(id) {
         el.classList.toggle('collapsed');
         if (icon) {
             icon.textContent = el.classList.contains('collapsed') ? '▶' : '▼';
+        }
+    }
+};
+
+// ==================== FUNCIONES GLOBALES: GESTIÓN DE SERVICIOS ====================
+
+window.cargarServiciosSelect = async function(selectId) {
+    const select = document.getElementById(selectId);
+    if (!select) return;
+    try {
+        const q = query(collection(db, 'servicios'), orderBy('nombre'));
+        const snapshot = await getDocs(q);
+        select.innerHTML = '<option value="">Seleccionar servicio...</option>';
+        snapshot.forEach((docSnap) => {
+            const s = docSnap.data();
+            const option = document.createElement('option');
+            option.value = s.nombre;
+            option.textContent = s.nombre;
+            select.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error cargando servicios:', error);
+    }
+};
+
+window.abrirModalEditarServicio = async function(id) {
+    try {
+        const docRef = doc(db, 'servicios', id);
+        const docSnap = await getDoc(docRef);
+        if (!docSnap.exists()) {
+            alert('Servicio no encontrado');
+            return;
+        }
+        const data = docSnap.data();
+        document.getElementById('editServId').value = id;
+        document.getElementById('editServNombre').value = data.nombre || '';
+        document.getElementById('modalEditarServicio').classList.add('active');
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+};
+
+window.guardarEdicionServicio = async function() {
+    const id = document.getElementById('editServId').value;
+    const nombre = document.getElementById('editServNombre').value.trim();
+
+    if (!nombre) {
+        alert('El nombre del servicio es obligatorio');
+        return;
+    }
+
+    try {
+        await updateDoc(doc(db, 'servicios', id), { nombre: nombre });
+        alert('✅ Servicio actualizado correctamente');
+        cerrarModalEditarServicio();
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+};
+
+window.cerrarModalEditarServicio = function() {
+    document.getElementById('modalEditarServicio').classList.remove('active');
+};
+
+window.eliminarServicio = async function(id) {
+    if (confirm('¿Eliminar este servicio?')) {
+        try {
+            await deleteDoc(doc(db, 'servicios', id));
+            alert('✅ Servicio eliminado');
+        } catch (error) {
+            alert('❌ Error: ' + error.message);
         }
     }
 };
@@ -921,6 +1017,9 @@ if (formConsulta) {
                 if (data.tecnologoAsignado) {
                     html += '<p><strong>🔬 Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
                 }
+                if (data.estado === 'finalizado' && data.dniPaciente) {
+                    html += '<button onclick="abrirKanteron(\'' + data.dniPaciente + '\')" class="btn-primary" style="margin-top:10px; background: linear-gradient(135deg, #2e7d32 0%, #4caf50 100%);">🔍 Kanteron PACS</button>';
+                }
                 if (data.motivoRechazo) {
                     html += '<p><strong>❌ Motivo no atencion:</strong> ' + data.motivoRechazo + '</p>';
                 }
@@ -1017,7 +1116,7 @@ function crearCardSolicitud(sol) {
         acciones = '<button onclick="revertirRechazo(\'' + id + '\')" class="btn-action revertir">↩️ REVERTIR</button><p class="motivo">Motivo: ' + (data.motivoRechazo || 'No especificado') + '</p>';
     } else if (data.estado === 'finalizado') {
         estadoBadge = '<span class="estado-badge finalizado">✅ ATENDIDO</span>';
-        acciones = '<span class="completado">Completado</span>';
+        acciones = '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action kanteron">🔍 Kanteron PACS</button><span class="completado">Completado</span>';
     }
     let adminBotones = '';
     if (localStorage.getItem('rol') === 'admin') {
@@ -1124,6 +1223,29 @@ if (formCrearTecnologo) {
         alert('Acceso denegado');
         window.location.href = 'index.html';
     }
+    // Formulario crear servicio
+    const formCrearServicio = document.getElementById('formCrearServicio');
+    if (formCrearServicio) {
+        formCrearServicio.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nombre = document.getElementById('servNombre').value.trim();
+            if (!nombre) {
+                alert('Ingrese el nombre del servicio');
+                return;
+            }
+            try {
+                await addDoc(collection(db, 'servicios'), {
+                    nombre: nombre,
+                    creado: serverTimestamp()
+                });
+                alert('✅ Servicio creado correctamente');
+                formCrearServicio.reset();
+            } catch (error) {
+                alert('❌ Error: ' + error.message);
+            }
+        });
+    }
+
     formCrearTecnologo.addEventListener('submit', async (e) => {
         e.preventDefault();
         const dni = document.getElementById('tecDNI').value;
@@ -1143,6 +1265,20 @@ if (formCrearTecnologo) {
             alert('❌ Error: ' + error.message);
         }
     });
+    function cargarServiciosAdmin() {
+        const q = query(collection(db, 'servicios'), orderBy('nombre'));
+        onSnapshot(q, (snapshot) => {
+            let html = '';
+            snapshot.forEach((docSnap) => {
+                const s = docSnap.data();
+                html += '<div class="servicio-item"><span><strong>' + s.nombre + '</strong></span><div><button onclick="abrirModalEditarServicio(\'' + docSnap.id + '\')" class="btn-eliminar" style="background: #e3f2fd; color: #1976d2; margin-right: 5px;">✏️</button><button onclick="eliminarServicio(\'' + docSnap.id + '\')" class="btn-eliminar">🗑️</button></div></div>';
+            });
+            const lista = document.getElementById('listaServicios');
+            if (lista) lista.innerHTML = html || '<p class="empty">No hay servicios registrados</p>';
+        });
+    }
+    cargarServiciosAdmin();
+
     function cargarTecnologos() {
         const q = query(collection(db, 'tecnologos'), orderBy('nombre'));
         onSnapshot(q, (snapshot) => {
@@ -1255,6 +1391,7 @@ window.cargarSolicitudesAdmin = function() {
             }
             html += '<div class="admin-actions">';
             html += '<button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
+            html += '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
             html += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
             html += '<button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
             html += '</div>';

@@ -827,3 +827,25 @@ body {
     transform: translateY(-3px);
     opacity: 1;
 }
+
+/* ==================== BOTÓN KANTERON ==================== */
+.btn-action.kanteron {
+    background: linear-gradient(135deg, #2e7d32 0%, #4caf50 100%);
+    color: white;
+    border: none;
+}
+.btn-action.kanteron:hover {
+    opacity: 0.9;
+    transform: translateY(-2px);
+}
+
+/* ==================== SERVICIOS ADMIN ==================== */
+.servicio-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-bottom: 8px;
+}
