@@ -467,21 +467,46 @@ window.generarReporte = async function() {
     let solicitudes = [];
     let total = 0, atendidos = 0, rechazados = 0, pendientes = 0;
     let tiemposAtencion = [];
-        snapshot.forEach((docSnap) => {
+
+    snapshot.forEach((docSnap) => {
         const d = docSnap.data();
         const fechaCreado = d.timestamps?.creado?.toDate();
+
+        // Filtrar por rango de fechas (siempre usando fecha de creación para el filtro)
         if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta) {
             if (tipoReporte === 'individual' && tecnologoFiltro && d.tecnologoAsignado !== tecnologoFiltro) return;
             total++;
+
+            // === CORRECCIÓN: Determinar punto de inicio para cálculo de tiempo ===
+            // Si es programada y tiene horaProgramada, usar esa como inicio
+            // Si no, usar timestamps.creado
+            let puntoInicioTimestamp = d.timestamps?.creado;
+            let esProgramada = d.esProgramado && d.horaProgramada;
+
+            if (esProgramada) {
+                puntoInicioTimestamp = d.horaProgramada;
+            }
+
             let tiempoAtencion = '-';
-            if (d.timestamps.creado && d.timestamps.finalizado) {
-                const diffSeg = (d.timestamps.finalizado.toDate() - d.timestamps.creado.toDate()) / 1000;
+            if (puntoInicioTimestamp && d.timestamps.finalizado) {
+                const inicio = puntoInicioTimestamp.toDate ? puntoInicioTimestamp.toDate() : new Date(puntoInicioTimestamp);
+                const fin = d.timestamps.finalizado.toDate ? d.timestamps.finalizado.toDate() : new Date(d.timestamps.finalizado);
+                const diffSeg = (fin - inicio) / 1000;
                 const diffMin = diffSeg / 60;
                 tiempoAtencion = formatearTiempoHHMMSS(diffSeg);
                 tiemposAtencion.push(diffMin);
             }
+
+            // Fecha/Hora a mostrar: si es programada, mostrar hora programada como referencia
+            // pero también indicar la fecha de creación
+            let fechaHoraDisplay = formatearFechaHora(d.timestamps?.creado);
+            if (esProgramada) {
+                fechaHoraDisplay = formatearFechaHora(d.horaProgramada) + ' (prog.)';
+            }
+
             solicitudes.push({
-                fechaHora: formatearFechaHora(d.timestamps?.creado),
+                fechaHora: fechaHoraDisplay,
+                fechaCreacion: formatearFechaHora(d.timestamps?.creado), // para referencia interna si se necesita
                 dni: d.dniPaciente,
                 paciente: d.nombrePaciente,
                 servicio: d.servicio || '-',
@@ -492,8 +517,10 @@ window.generarReporte = async function() {
                 tiempoAtencion: tiempoAtencion,
                 notas: d.notas || '',
                 historialNotas: d.historialNotas || [],
-                motivoRechazo: d.motivoRechazo || ''
+                motivoRechazo: d.motivoRechazo || '',
+                esProgramado: d.esProgramado || false
             });
+
             if (d.estado === 'finalizado') {
                 atendidos++;
             } else if (d.estado === 'rechazado') {
@@ -503,16 +530,18 @@ window.generarReporte = async function() {
             }
         }
     });
+
     const tiempoPromedioSeg = tiemposAtencion.length > 0 
         ? (tiemposAtencion.reduce((a,b) => a+b, 0) / tiemposAtencion.length)
         : 0;
     const tiempoPromedio = formatearMinutosAHHMMSS(tiempoPromedioSeg);
 
-    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Médico</th><th>Tiempo Atencion</th><th>Notas</th></tr></thead><tbody>';
+    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora Inicio</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Medico</th><th>Tiempo Atencion</th><th>Notas</th></tr></thead><tbody>';
     solicitudes.forEach(s => {
         tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + limpiarNombreTecnologo(s.tecnologo) + '</td><td>' + s.tiempoAtencion + '</td><td>' + s.notas + '</td></tr>';
     });
     tablaHTML += '</tbody></table>';
+
     contenedor.innerHTML = '<div class="card"><h3>📊 Reporte ' + (tipoReporte === 'individual' ? 'Individual' : 'General') + ' del ' + desde + ' al ' + hasta + '</h3><div class="stats-reporte"><div class="stat-box"><strong>Total:</strong> ' + total + '</div><div class="stat-box"><strong>Atendidas:</strong> ' + atendidos + '</div><div class="stat-box"><strong>No atendidas:</strong> ' + rechazados + '</div><div class="stat-box"><strong>Pendientes:</strong> ' + pendientes + '</div><div class="stat-box"><strong>Tiempo promedio:</strong> ' + tiempoPromedio + ' min</div></div>' +  '<h4>📋 Detalle:</h4>' + tablaHTML + '<button onclick="exportarExcel()" class="btn-primary" style="margin-top:15px;">📥 Exportar a Excel</button></div>';
     window.datosReporte = solicitudes;
 };
