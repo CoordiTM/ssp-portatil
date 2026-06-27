@@ -488,12 +488,19 @@ window.generarReporte = async function() {
             }
 
             let tiempoAtencion = '-';
+            let tiempoTotal = '-';
+            let infoPausas = '';
+
             if (puntoInicioTimestamp && d.timestamps.finalizado) {
-                const inicio = puntoInicioTimestamp.toDate ? puntoInicioTimestamp.toDate() : new Date(puntoInicioTimestamp);
-                const fin = d.timestamps.finalizado.toDate ? d.timestamps.finalizado.toDate() : new Date(d.timestamps.finalizado);
-                const diffSeg = (fin - inicio) / 1000;
-                const diffMin = diffSeg / 60;
-                tiempoAtencion = formatearTiempoHHMMSS(diffSeg);
+                const tiempos = calcularTiempoEfectivo(d);
+                tiempoAtencion = formatearTiempoHHMMSS(tiempos.efectivo);
+                tiempoTotal = formatearTiempoHHMMSS(tiempos.total);
+
+                if (tiempos.pausasTiempo > 0) {
+                    infoPausas = ' (+' + formatearTiempoHHMMSS(tiempos.pausasTiempo) + ' espera)';
+                }
+
+                const diffMin = tiempos.efectivo / 60;
                 tiemposAtencion.push(diffMin);
             }
 
@@ -506,7 +513,7 @@ window.generarReporte = async function() {
 
             solicitudes.push({
                 fechaHora: fechaHoraDisplay,
-                fechaCreacion: formatearFechaHora(d.timestamps?.creado), // para referencia interna si se necesita
+                fechaCreacion: formatearFechaHora(d.timestamps?.creado),
                 dni: d.dniPaciente,
                 paciente: d.nombrePaciente,
                 servicio: d.servicio || '-',
@@ -515,6 +522,8 @@ window.generarReporte = async function() {
                 estado: d.estado,
                 tecnologo: limpiarNombreTecnologo(d.tecnologoAsignado) || 'Sin asignar',
                 tiempoAtencion: tiempoAtencion,
+                tiempoTotal: tiempoTotal,
+                infoPausas: infoPausas,
                 notas: d.notas || '',
                 historialNotas: d.historialNotas || [],
                 motivoRechazo: d.motivoRechazo || '',
@@ -536,9 +545,9 @@ window.generarReporte = async function() {
         : 0;
     const tiempoPromedio = formatearMinutosAHHMMSS(tiempoPromedioSeg);
 
-    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora Inicio</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Medico</th><th>Tiempo Atencion</th><th>Notas</th></tr></thead><tbody>';
+    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora Inicio</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Medico</th><th>Tiempo Efectivo</th><th>Notas</th></tr></thead><tbody>';
     solicitudes.forEach(s => {
-        tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + limpiarNombreTecnologo(s.tecnologo) + '</td><td>' + s.tiempoAtencion + '</td><td>' + s.notas + '</td></tr>';
+        tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + limpiarNombreTecnologo(s.tecnologo) + '</td><td>' + s.tiempoAtencion + (s.infoPausas || '') + '</td><td>' + s.notas + '</td></tr>';
     });
     tablaHTML += '</tbody></table>';
 
@@ -812,6 +821,130 @@ window.guardarEdicionSolicitud = async function() {
 window.cerrarModalEditarSolicitud = function() {
     document.getElementById('modalEditarSolicitud').classList.remove('active');
 };
+
+// ==================== PAUSA DE ATENCIÓN ====================
+
+window.mostrarPausaAtencion = async function(id) {
+    const horaRegreso = prompt('⏸️ PACIENTE NO DISPONIBLE\n\nIngrese hora de regreso (HH:MM):\nEjemplo: 14:30');
+    if (!horaRegreso || !horaRegreso.match(/^\d{2}:\d{2}$/)) {
+        alert('❌ Formato inválido. Use HH:MM (ej: 14:30)');
+        return;
+    }
+
+    const notas = prompt('Motivo de la pausa (opcional):\nEj: Paciente en diálisis, en procedimiento, etc.');
+
+    try {
+        const docRef = doc(db, 'solicitudes', id);
+        const docSnap = await getDoc(docRef);
+        const data = docSnap.data();
+
+        const ahora = new Date();
+        const [horas, minutos] = horaRegreso.split(':');
+        const hoy = new Date();
+        let reinicioProgramado = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), parseInt(horas), parseInt(minutos));
+
+        // Si la hora de regreso ya pasó hoy, asumir mañana
+        if (reinicioProgramado < ahora) {
+            reinicioProgramado.setDate(reinicioProgramado.getDate() + 1);
+        }
+
+        const nuevaPausa = {
+            inicio: Timestamp.fromDate(ahora),
+            reinicioProgramado: Timestamp.fromDate(reinicioProgramado),
+            motivo: notas || 'Paciente no disponible',
+            tecnologo: localStorage.getItem('tecnologoNombre') || 'Tecnologo',
+            estado: 'pausada'
+        };
+
+        const pausasActuales = data.pausas || [];
+        pausasActuales.push(nuevaPausa);
+
+        await updateDoc(docRef, {
+            pausas: pausasActuales,
+            estadoPausa: 'pausada'
+        });
+
+        alert('⏸️ Atención pausada. Regreso programado: ' + horaRegreso);
+
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+};
+
+window.reiniciarAtencion = async function(id) {
+    try {
+        const docRef = doc(db, 'solicitudes', id);
+        const docSnap = await getDoc(docRef);
+        const data = docSnap.data();
+
+        if (!data.pausas || data.pausas.length === 0) {
+            alert('No hay pausas registradas');
+            return;
+        }
+
+        const ultimaPausa = data.pausas[data.pausas.length - 1];
+        if (ultimaPausa.estado !== 'pausada') {
+            alert('La última pausa ya fue reiniciada o completada');
+            return;
+        }
+
+        const ahora = new Date();
+        ultimaPausa.reinicioReal = Timestamp.fromDate(ahora);
+        ultimaPausa.estado = 'reiniciada';
+
+        const pausasActualizadas = [...data.pausas];
+        pausasActualizadas[pausasActualizadas.length - 1] = ultimaPausa;
+
+        await updateDoc(docRef, {
+            pausas: pausasActualizadas,
+            estadoPausa: 'reiniciada'
+        });
+
+        alert('▶️ Atención reiniciada. Tiempo de espera no contará para el total.');
+
+    } catch (error) {
+        alert('❌ Error: ' + error.message);
+    }
+};
+
+function calcularTiempoEfectivo(data) {
+    if (!data.timestamps?.creado) return { efectivo: 0, total: 0, pausasTiempo: 0 };
+
+    const creado = data.timestamps.creado.toDate ? data.timestamps.creado.toDate() : new Date(data.timestamps.creado);
+    const finalizado = data.timestamps.finalizado?.toDate ? data.timestamps.finalizado.toDate() : null;
+
+    if (!finalizado) return { efectivo: 0, total: 0, pausasTiempo: 0 };
+
+    const tiempoTotal = (finalizado - creado) / 1000;
+
+    if (!data.pausas || data.pausas.length === 0) {
+        return { efectivo: tiempoTotal, total: tiempoTotal, pausasTiempo: 0 };
+    }
+
+    let tiempoPausas = 0;
+
+    data.pausas.forEach(pausa => {
+        if (pausa.reinicioReal) {
+            const inicioPausa = pausa.inicio.toDate ? pausa.inicio.toDate() : new Date(pausa.inicio);
+            const finPausa = pausa.reinicioReal.toDate ? pausa.reinicioReal.toDate() : new Date(pausa.reinicioReal);
+            tiempoPausas += (finPausa - inicioPausa) / 1000;
+        } else if (pausa.reinicioProgramado && !pausa.reinicioReal) {
+            const inicioPausa = pausa.inicio.toDate ? pausa.inicio.toDate() : new Date(pausa.inicio);
+            const finPausa = pausa.reinicioProgramado.toDate ? pausa.reinicioProgramado.toDate() : new Date(pausa.reinicioProgramado);
+            tiempoPausas += (finPausa - inicioPausa) / 1000;
+        }
+    });
+
+    const tiempoEfectivo = tiempoTotal - tiempoPausas;
+
+    return {
+        efectivo: Math.max(0, tiempoEfectivo),
+        total: tiempoTotal,
+        pausasTiempo: tiempoPausas
+    };
+}
+
+
 
 window.toggleAcordeon = function(id) {
     const el = document.getElementById(id);
@@ -1142,7 +1275,14 @@ function crearCardSolicitud(sol) {
         acciones = '<button onclick="cambiarEstado(\'' + id + '\', \'en_camino\')" class="btn-action camino">🚶 EN CAMINO</button><button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
     } else if (data.estado === 'en_camino') {
         estadoBadge = '<span class="estado-badge camino">🚶 EN CAMINO</span>';
-        acciones = '<button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="cambiarEstado(\'' + id + '\', \'finalizado\')" class="btn-action finalizar">✅ FINALIZAR</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
+        // Si hay pausa activa, mostrar botón de reinicio
+        if (data.estadoPausa === 'pausada' && data.pausas && data.pausas.length > 0) {
+            const ultimaPausa = data.pausas[data.pausas.length - 1];
+            const horaProg = ultimaPausa.reinicioProgramado?.toDate ? ultimaPausa.reinicioProgramado.toDate().toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'}) : 'programada';
+            acciones = '<button onclick="reiniciarAtencion(\'' + id + '\')" class="btn-action reiniciar">▶️ REINICIAR (regreso ' + horaProg + ')</button><button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
+        } else {
+            acciones = '<button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarPausaAtencion(\'' + id + '\')" class="btn-action pausa">⏸️ PAUSAR</button><button onclick="cambiarEstado(\'' + id + '\', \'finalizado\')" class="btn-action finalizar">✅ FINALIZAR</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
+        }
     } else if (data.estado === 'rechazado') {
         estadoBadge = '<span class="estado-badge rechazado">❌ NO ATENDIDO</span>';
         acciones = '<button onclick="revertirRechazo(\'' + id + '\')" class="btn-action revertir">↩️ REVERTIR</button><p class="motivo">Motivo: ' + (data.motivoRechazo || 'No especificado') + '</p>';
