@@ -908,14 +908,22 @@ window.reiniciarAtencion = async function(id) {
 };
 
 function calcularTiempoEfectivo(data) {
-    if (!data.timestamps?.creado) return { efectivo: 0, total: 0, pausasTiempo: 0 };
+    // === CORRECCIÓN: Determinar punto de inicio real ===
+    // Si es programada y tiene horaProgramada, usar esa como inicio
+    // Si no, usar timestamps.creado
+    let puntoInicio = data.timestamps?.creado;
+    if (data.esProgramado && data.horaProgramada) {
+        puntoInicio = data.horaProgramada;
+    }
+    
+    if (!puntoInicio) return { efectivo: 0, total: 0, pausasTiempo: 0 };
 
-    const creado = data.timestamps.creado.toDate ? data.timestamps.creado.toDate() : new Date(data.timestamps.creado);
+    const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
     const finalizado = data.timestamps.finalizado?.toDate ? data.timestamps.finalizado.toDate() : null;
 
     if (!finalizado) return { efectivo: 0, total: 0, pausasTiempo: 0 };
 
-    const tiempoTotal = (finalizado - creado) / 1000;
+    const tiempoTotal = (finalizado - inicio) / 1000;
 
     if (!data.pausas || data.pausas.length === 0) {
         return { efectivo: tiempoTotal, total: tiempoTotal, pausasTiempo: 0 };
@@ -943,7 +951,6 @@ function calcularTiempoEfectivo(data) {
         pausasTiempo: tiempoPausas
     };
 }
-
 
 
 window.toggleAcordeon = function(id) {
