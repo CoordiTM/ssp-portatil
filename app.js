@@ -249,12 +249,14 @@ window.abrirKanteron = function(dni) {
     window.open('http://172.22.55.100:8080/kWebViewer/main.jsp?lang=es', '_blank');
 };
 
+// === CORRECCIÓN 1: tiempoTranscurrido ahora usa horaProgramada para finalizados programados ===
 function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado, esProgramado) {
     // Para solicitudes programadas, el tiempo de atención cuenta desde la hora programada
     const puntoInicio = (esProgramado && horaProgramada) ? horaProgramada : timestamp;
 
     if (estado === 'finalizado') {
         if (timestampFinalizado) {
+            // === CORRECCIÓN: Usar puntoInicio (horaProgramada si es programada) ===
             const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
             const fin = timestampFinalizado.toDate ? timestampFinalizado.toDate() : new Date(timestampFinalizado);
             const diff = Math.floor((fin - inicio) / 1000);
@@ -267,6 +269,7 @@ function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinaliza
     }
     if (estado === 'rechazado') {
         if (timestampRechazado) {
+            // === CORRECCIÓN: Usar puntoInicio también para rechazados programados ===
             const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
             const fin = timestampRechazado.toDate ? timestampRechazado.toDate() : new Date(timestampRechazado);
             const diff = Math.floor((fin - inicio) / 1000);
@@ -625,6 +628,7 @@ window.exportarPDF = function() {
     pdf.save('reporte_ssp_' + desde + '_' + hasta + '.pdf');
 };
 
+// === CORRECCIÓN 3: exportarProduccionPDF ahora usa horaProgramada para programados ===
 window.exportarProduccionPDF = async function() {
     const desdeInput = document.getElementById('fechaDesdeProd').value;
     const hastaInput = document.getElementById('fechaHastaProd').value;
@@ -654,10 +658,20 @@ window.exportarProduccionPDF = async function() {
         const fechaCreado = d.timestamps?.creado?.toDate();
         if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta && d.estado === 'finalizado') {
             let tiempoAtencion = '-';
-            if (d.timestamps.creado && d.timestamps.finalizado) {
-                const diffSeg = (d.timestamps.finalizado.toDate() - d.timestamps.creado.toDate()) / 1000;
+            
+            // === CORRECCIÓN: Usar horaProgramada si es programada ===
+            let puntoInicio = d.timestamps.creado;
+            if (d.esProgramado && d.horaProgramada) {
+                puntoInicio = d.horaProgramada;
+            }
+            
+            if (puntoInicio && d.timestamps.finalizado) {
+                const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
+                const fin = d.timestamps.finalizado.toDate ? d.timestamps.finalizado.toDate() : new Date(d.timestamps.finalizado);
+                const diffSeg = (fin - inicio) / 1000;
                 tiempoAtencion = formatearTiempoHHMMSS(diffSeg);
             }
+            
             produccion.push({
                 fechaHora: formatearFechaHora(d.timestamps?.creado),
                 dni: d.dniPaciente,
@@ -907,8 +921,9 @@ window.reiniciarAtencion = async function(id) {
     }
 };
 
+// === CORRECCIÓN 2: calcularTiempoEfectivo ahora usa horaProgramada para programados ===
 function calcularTiempoEfectivo(data) {
-    // === CORRECCIÓN: Determinar punto de inicio real ===
+    // Determinar punto de inicio real
     // Si es programada y tiene horaProgramada, usar esa como inicio
     // Si no, usar timestamps.creado
     let puntoInicio = data.timestamps?.creado;
@@ -951,6 +966,7 @@ function calcularTiempoEfectivo(data) {
         pausasTiempo: tiempoPausas
     };
 }
+
 
 
 window.toggleAcordeon = function(id) {
