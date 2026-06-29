@@ -1309,9 +1309,44 @@ function crearCardSolicitud(sol) {
     } else if (data.estado === 'rechazado') {
         estadoBadge = '<span class="estado-badge rechazado">❌ NO ATENDIDO</span>';
         acciones = '<button onclick="revertirRechazo(\'' + id + '\')" class="btn-action revertir">↩️ REVERTIR</button><p class="motivo">Motivo: ' + (data.motivoRechazo || 'No especificado') + '</p>';
-    } else if (data.estado === 'finalizado') {
+        } else if (data.estado === 'finalizado') {
         estadoBadge = '<span class="estado-badge finalizado">✅ ATENDIDO</span>';
-        acciones = '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action kanteron">🔍 Kanteron PACS</button><span class="completado">Completado</span>';
+        
+        // === CORRECCIÓN: Mostrar trazabilidad de tiempos en cards finalizados ===
+        let lineasTiempo = [];
+        
+        if (data.timestamps?.creado) {
+            lineasTiempo.push('📋 Registro: ' + formatearFechaHora(data.timestamps.creado));
+        }
+        if (data.timestamps?.enCamino) {
+            lineasTiempo.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
+        }
+        if (data.pausas && data.pausas.length > 0) {
+            data.pausas.forEach((p, idx) => {
+                const inicio = p.inicio ? formatearFechaHora(p.inicio) : '-';
+                const fin = p.reinicioReal ? formatearFechaHora(p.reinicioReal) : (p.reinicioProgramado ? formatearFechaHora(p.reinicioProgramado) + ' (prog)' : '...');
+                lineasTiempo.push('⏸️ Pausa ' + (idx + 1) + ': ' + inicio + ' → ' + fin);
+            });
+        }
+        if (data.timestamps?.finalizado) {
+            lineasTiempo.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
+        }
+        
+        const tiemposCalc = calcularTiempoEfectivo(data);
+        const tiempoTotal = tiemposCalc.efectivo > 0 
+            ? '<strong style="color:#2e7d32;">⏱️ Tiempo total: ' + formatearTiempoHHMMSS(tiemposCalc.efectivo) + '</strong>'
+            : '';
+        
+        let trazabilidadHTML = '';
+        if (lineasTiempo.length > 0) {
+            trazabilidadHTML = '<div style="background:#e8f5e9;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;line-height:1.6;">';
+            trazabilidadHTML += lineasTiempo.join('<br>');
+            if (tiempoTotal) trazabilidadHTML += '<br>' + tiempoTotal;
+            trazabilidadHTML += '</div>';
+        }
+        
+        acciones = '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action kanteron">🔍 Kanteron PACS</button>' + trazabilidadHTML;
+    }
     }
     let adminBotones = '';
     if (localStorage.getItem('rol') === 'admin') {
