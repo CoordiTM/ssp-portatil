@@ -1344,11 +1344,17 @@ function cargarSolicitudes() {
         let html = '';
         let counts = { pendiente: 0, en_camino: 0, rechazado: 0, finalizado: 0 };
         let nuevasSolicitudes = 0;
+
+        // === CORRECCIÓN: Contar TODOS primero, antes del filtro ===
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
+            
+            // Contadores globales (sin filtros)
+            if (counts[data.estado] !== undefined) counts[data.estado]++;
+            
+            // Notificaciones solo para nuevas pendientes
             if (data.estado === 'pendiente' && !solicitudesAnteriores.has(docSnap.id)) {
                 nuevasSolicitudes++;
-                // NOTIFICACION PUSH - Las 4 alertas
                 mostrarNotificacionCompleta(
                     '🚨 Nueva Solicitud Rx Portatil',
                     '🏥 ' + (data.servicio || 'Sin servicio') + ' | 👤 ' + (data.nombrePaciente || 'Sin nombre'),
@@ -1356,15 +1362,9 @@ function cargarSolicitudes() {
                     data.nombrePaciente
                 );
             }
-            if (estadoFiltro !== 'todos' && data.estado !== estadoFiltro) return;
-            if (fechaFiltro && data.timestamps?.creado) {
-                const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
-                if (fechaDoc !== fechaFiltro) return;
-            }
-            if (counts[data.estado] !== undefined) counts[data.estado]++;
-            html += crearCardSolicitud({ id: docSnap.id, data });
-            solicitudesAnteriores.add(docSnap.id);
         });
+
+        // Actualizar contadores en UI primero
         const countPendiente = document.getElementById('countPendiente');
         const countEnCamino = document.getElementById('countEnCamino');
         const countRechazado = document.getElementById('countRechazado');
@@ -1373,6 +1373,21 @@ function cargarSolicitudes() {
         if (countEnCamino) countEnCamino.textContent = counts.en_camino;
         if (countRechazado) countRechazado.textContent = counts.rechazado;
         if (countFinalizado) countFinalizado.textContent = counts.finalizado;
+
+        // === Ahora aplicar filtros solo para renderizar cards ===
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            
+            if (estadoFiltro !== 'todos' && data.estado !== estadoFiltro) return;
+            if (fechaFiltro && data.timestamps?.creado) {
+                const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
+                if (fechaDoc !== fechaFiltro) return;
+            }
+            
+            html += crearCardSolicitud({ id: docSnap.id, data });
+            solicitudesAnteriores.add(docSnap.id);
+        });
+
         if (listaCards) listaCards.innerHTML = html || '<p class="empty">No hay solicitudes</p>';
     }, (error) => {
         console.error('Error:', error);
