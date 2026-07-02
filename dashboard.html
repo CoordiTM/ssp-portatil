@@ -9,6 +9,64 @@
     <!-- jsPDF + autoTable para exportar PDFs -->
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
+    
+    <!-- === NUEVO: Estilos para Programados Pendientes === -->
+    <style>
+        /* Badge de estado naranja */
+        .estado-badge.programado-pendiente {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        /* Card con borde naranja y fondo amarillo suave */
+        .programado-pendiente-card {
+            border-left: 4px solid #f39c12 !important;
+            background: linear-gradient(to right, #fef9e7 0%, #ffffff 100%) !important;
+        }
+
+        /* Botón de filtro activo para programados */
+        .btn-filtro.active#btn-programado_pendiente {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+            border-color: #f39c12;
+        }
+
+        /* Contador en el botón de programados */
+        .count-badge.programado {
+            background: rgba(255,255,255,0.3);
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-size: 12px;
+            margin-left: 5px;
+        }
+
+        /* Indicador de hora programada en card */
+        .badge-programado {
+            background: #fff3e0;
+            color: #e65100;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            margin-left: 8px;
+        }
+
+        /* Botón de filtro programado (estado inactivo) */
+        .btn-filtro.btn-programado {
+            background: #fff8e1;
+            color: #f39c12;
+            border: 2px solid #f39c12;
+        }
+        
+        .btn-filtro.btn-programado:hover {
+            background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+            color: white;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -31,7 +89,11 @@
 
             <div class="filtro-botones">
                 <button onclick="filtrarEstado('pendiente')" class="btn-filtro btn-pendiente active" id="btn-pendiente">
-                    ⏳ <span class="badge" id="countPendiente">0</span>
+                    🚨 <span class="badge" id="countPendiente">0</span>
+                </button>
+                <!-- === NUEVO: Botón Programados Pendientes === -->
+                <button onclick="filtrarEstado('programado_pendiente')" class="btn-filtro btn-programado" id="btn-programado_pendiente">
+                    ⏰ <span class="badge" id="countProgramado">0</span>
                 </button>
                 <button onclick="filtrarEstado('en_camino')" class="btn-filtro btn-camino" id="btn-camino">
                     🚶 <span class="badge" id="countEnCamino">0</span>
@@ -63,13 +125,13 @@
         </section>
 
         <section class="card">
-            <h2 id="tituloLista">📋 Pendientes</h2>
+            <h2 id="tituloLista">🚨 Pendientes Urgentes</h2>
             <div id="listaSolicitudes" class="lista-cards">
                 <p class="empty">Cargando...</p>
             </div>
         </section>
 
-                <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
+        <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
             <p>© 2026 SSP Rx Portátil - Desarrollado por Flurolab Academy</p>
         </footer>
     </div>
