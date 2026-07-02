@@ -249,14 +249,11 @@ window.abrirKanteron = function(dni) {
     window.open('http://172.22.55.100:8080/kWebViewer/main.jsp?lang=es', '_blank');
 };
 
-// === CORRECCIÓN 1: tiempoTranscurrido ahora usa horaProgramada para finalizados programados ===
 function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinalizado, timestampRechazado, esProgramado) {
-    // Para solicitudes programadas, el tiempo de atención cuenta desde la hora programada
     const puntoInicio = (esProgramado && horaProgramada) ? horaProgramada : timestamp;
 
     if (estado === 'finalizado') {
         if (timestampFinalizado) {
-            // === CORRECCIÓN: Usar puntoInicio (horaProgramada si es programada) ===
             const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
             const fin = timestampFinalizado.toDate ? timestampFinalizado.toDate() : new Date(timestampFinalizado);
             const diff = Math.floor((fin - inicio) / 1000);
@@ -264,12 +261,10 @@ function tiempoTranscurrido(timestamp, horaProgramada, estado, timestampFinaliza
             if (diff < 3600) return '✅ ' + Math.floor(diff/60) + 'm total';
             return '✅ ' + Math.floor(diff/3600) + 'h ' + Math.floor((diff%3600)/60) + 'm total';
         }
-        // Estado finalizado pero sin timestamp de finalización
         return '✅ Completado';
     }
     if (estado === 'rechazado') {
         if (timestampRechazado) {
-            // === CORRECCIÓN: Usar puntoInicio también para rechazados programados ===
             const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
             const fin = timestampRechazado.toDate ? timestampRechazado.toDate() : new Date(timestampRechazado);
             const diff = Math.floor((fin - inicio) / 1000);
@@ -427,6 +422,7 @@ window.eliminarSolicitud = async function(id) {
     }
 };
 
+// === NUEVO: filtrarEstado con 5 estados incluyendo programado_pendiente ===
 window.filtrarEstado = function(estado) {
     estadoFiltro = estado;
     document.querySelectorAll('.btn-filtro').forEach(btn => {
@@ -434,20 +430,16 @@ window.filtrarEstado = function(estado) {
     });
     const btnActivo = document.getElementById('btn-' + estado);
     if (btnActivo) btnActivo.classList.add('active');
+    
     const titulos = {
         'todos': '📋 Todas',
-        'pendiente': '⏳ Pendientes',
+        'pendiente': '🚨 Pendientes Urgentes',
+        'programado_pendiente': '⏰ Programados Pendientes',
         'en_camino': '🚶 En camino',
         'rechazado': '❌ No atendidas',
         'finalizado': '✅ Atendidas'
     };
-    // Activar visualmente el botón pendiente por default
-    const btnPendiente = document.getElementById('btn-pendiente');
-    if (btnPendiente && estadoFiltro === 'pendiente') {
-        btnPendiente.classList.add('active');
-        const btnTodos = document.getElementById('btn-todos');
-        if (btnTodos) btnTodos.classList.remove('active');
-    }
+    
     const tituloEl = document.getElementById('tituloLista');
     if (tituloEl) tituloEl.textContent = titulos[estado] || '📋 Solicitudes';
     cargarSolicitudes();
@@ -475,14 +467,10 @@ window.generarReporte = async function() {
         const d = docSnap.data();
         const fechaCreado = d.timestamps?.creado?.toDate();
 
-        // Filtrar por rango de fechas (siempre usando fecha de creación para el filtro)
         if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta) {
             if (tipoReporte === 'individual' && tecnologoFiltro && d.tecnologoAsignado !== tecnologoFiltro) return;
             total++;
 
-            // === CORRECCIÓN: Determinar punto de inicio para cálculo de tiempo ===
-            // Si es programada y tiene horaProgramada, usar esa como inicio
-            // Si no, usar timestamps.creado
             let puntoInicioTimestamp = d.timestamps?.creado;
             let esProgramada = d.esProgramado && d.horaProgramada;
 
@@ -507,8 +495,6 @@ window.generarReporte = async function() {
                 tiemposAtencion.push(diffMin);
             }
 
-            // Fecha/Hora a mostrar: si es programada, mostrar hora programada como referencia
-            // pero también indicar la fecha de creación
             let fechaHoraDisplay = formatearFechaHora(d.timestamps?.creado);
             if (esProgramada) {
                 fechaHoraDisplay = formatearFechaHora(d.horaProgramada) + ' (prog.)';
@@ -628,7 +614,6 @@ window.exportarPDF = function() {
     pdf.save('reporte_ssp_' + desde + '_' + hasta + '.pdf');
 };
 
-// === CORRECCIÓN 3: exportarProduccionPDF ahora usa horaProgramada para programados ===
 window.exportarProduccionPDF = async function() {
     const desdeInput = document.getElementById('fechaDesdeProd').value;
     const hastaInput = document.getElementById('fechaHastaProd').value;
@@ -659,7 +644,6 @@ window.exportarProduccionPDF = async function() {
         if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta && d.estado === 'finalizado') {
             let tiempoAtencion = '-';
             
-            // === CORRECCIÓN: Usar horaProgramada si es programada ===
             let puntoInicio = d.timestamps.creado;
             if (d.esProgramado && d.horaProgramada) {
                 puntoInicio = d.horaProgramada;
@@ -777,7 +761,6 @@ window.abrirModalEditarSolicitud = async function(id) {
         document.getElementById('editSolEstado').value = data.estado || 'pendiente';
         document.getElementById('editSolTecnologo').value = data.tecnologoAsignado || '';
 
-        // Convertir timestamps a formato datetime-local (YYYY-MM-DDTHH:MM)
         const toLocalInput = (ts) => {
             if (!ts) return '';
             const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -818,7 +801,6 @@ window.guardarEdicionSolicitud = async function() {
         'timestamps.rechazado': toTimestamp(rechazado)
     };
 
-    // Si cambió a finalizado y no hay tecnólogo asignado, alertar
     if (updates.estado === 'finalizado' && !updates.tecnologoAsignado) {
         if (!confirm('Estado es FINALIZADO pero no hay tecnólogo asignado. ¿Continuar?')) return;
     }
@@ -857,7 +839,6 @@ window.mostrarPausaAtencion = async function(id) {
         const hoy = new Date();
         let reinicioProgramado = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), parseInt(horas), parseInt(minutos));
 
-        // Si la hora de regreso ya pasó hoy, asumir mañana
         if (reinicioProgramado < ahora) {
             reinicioProgramado.setDate(reinicioProgramado.getDate() + 1);
         }
@@ -921,11 +902,7 @@ window.reiniciarAtencion = async function(id) {
     }
 };
 
-// === CORRECCIÓN 2: calcularTiempoEfectivo ahora usa horaProgramada para programados ===
 function calcularTiempoEfectivo(data) {
-    // Determinar punto de inicio real
-    // Si es programada y tiene horaProgramada, usar esa como inicio
-    // Si no, usar timestamps.creado
     let puntoInicio = data.timestamps?.creado;
     if (data.esProgramado && data.horaProgramada) {
         puntoInicio = data.horaProgramada;
@@ -966,8 +943,6 @@ function calcularTiempoEfectivo(data) {
         pausasTiempo: tiempoPausas
     };
 }
-
-
 
 window.toggleAcordeon = function(id) {
     const el = document.getElementById(id);
@@ -1269,6 +1244,7 @@ let estadoFiltro = 'pendiente';
 let fechaFiltro = '';
 let solicitudesAnteriores = new Set();
 
+// === NUEVO: crearCardSolicitud con clasificación Programado Pendiente ===
 function crearCardSolicitud(sol) {
     const id = sol.id;
     const data = sol.data;
@@ -1278,6 +1254,16 @@ function crearCardSolicitud(sol) {
     let acciones = '';
     let estadoBadge = '';
     let indicadorProgramado = '';
+    
+    // === NUEVO: Determinar si es programado pendiente (futuro > 2h) ===
+    const ahora = new Date();
+    let esProgramadoPendiente = false;
+    if (data.estado === 'pendiente' && data.esProgramado && data.horaProgramada) {
+        const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+        const dosHoras = 2 * 60 * 60 * 1000;
+        esProgramadoPendiente = horaProg > new Date(ahora.getTime() + dosHoras);
+    }
+    
     if (data.esProgramado && data.horaProgramada) {
         const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
         const horaProgStr = horaProg.toLocaleString('es-PE', {
@@ -1285,6 +1271,7 @@ function crearCardSolicitud(sol) {
         });
         indicadorProgramado = '<span class="badge-programado">⏰ Programado: ' + horaProgStr + '</span>';
     }
+    
     let historialNotasHTML = '';
     if (data.historialNotas && data.historialNotas.length > 0) {
         historialNotasHTML = '<div class="historial-notas"><h4>📝 Registro de eventos:</h4>';
@@ -1293,12 +1280,19 @@ function crearCardSolicitud(sol) {
         });
         historialNotasHTML += '</div>';
     }
+    
     if (data.estado === 'pendiente') {
-        estadoBadge = '<span class="estado-badge pendiente">⏳ PENDIENTE</span>';
-        acciones = '<button onclick="cambiarEstado(\'' + id + '\', \'en_camino\')" class="btn-action camino">🚶 EN CAMINO</button><button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
+        if (esProgramadoPendiente) {
+            // === NUEVO: Programado Pendiente (no urgente, futuro > 2h) ===
+            estadoBadge = '<span class="estado-badge programado-pendiente">⏰ PROGRAMADO</span>';
+            acciones = '<button onclick="cambiarEstado(\'' + id + '\', \'en_camino\')" class="btn-action camino">🚶 ATENDER AHORA</button><button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
+        } else {
+            // Pendiente Urgente (normal o programado próximo)
+            estadoBadge = '<span class="estado-badge pendiente">⏳ PENDIENTE</span>';
+            acciones = '<button onclick="cambiarEstado(\'' + id + '\', \'en_camino\')" class="btn-action camino">🚶 EN CAMINO</button><button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
+        }
     } else if (data.estado === 'en_camino') {
         estadoBadge = '<span class="estado-badge camino">🚶 EN CAMINO</span>';
-        // Si hay pausa activa, mostrar botón de reinicio
         if (data.estadoPausa === 'pausada' && data.pausas && data.pausas.length > 0) {
             const ultimaPausa = data.pausas[data.pausas.length - 1];
             const horaProg = ultimaPausa.reinicioProgramado?.toDate ? ultimaPausa.reinicioProgramado.toDate().toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'}) : 'programada';
@@ -1309,18 +1303,13 @@ function crearCardSolicitud(sol) {
     } else if (data.estado === 'rechazado') {
         estadoBadge = '<span class="estado-badge rechazado">❌ NO ATENDIDO</span>';
         acciones = '<button onclick="revertirRechazo(\'' + id + '\')" class="btn-action revertir">↩️ REVERTIR</button><p class="motivo">Motivo: ' + (data.motivoRechazo || 'No especificado') + '</p>';
-        } else if (data.estado === 'finalizado') {
+    } else if (data.estado === 'finalizado') {
         estadoBadge = '<span class="estado-badge finalizado">✅ ATENDIDO</span>';
         
-        // === CORRECCIÓN: Mostrar trazabilidad de tiempos en cards finalizados ===
+        // === Trazabilidad de tiempos en cards finalizados ===
         let lineasTiempo = [];
-        
-        if (data.timestamps?.creado) {
-            lineasTiempo.push('📋 Registro: ' + formatearFechaHora(data.timestamps.creado));
-        }
-        if (data.timestamps?.enCamino) {
-            lineasTiempo.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
-        }
+        if (data.timestamps?.creado) lineasTiempo.push('📋 Registro: ' + formatearFechaHora(data.timestamps.creado));
+        if (data.timestamps?.enCamino) lineasTiempo.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
         if (data.pausas && data.pausas.length > 0) {
             data.pausas.forEach((p, idx) => {
                 const inicio = p.inicio ? formatearFechaHora(p.inicio) : '-';
@@ -1328,9 +1317,7 @@ function crearCardSolicitud(sol) {
                 lineasTiempo.push('⏸️ Pausa ' + (idx + 1) + ': ' + inicio + ' → ' + fin);
             });
         }
-        if (data.timestamps?.finalizado) {
-            lineasTiempo.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
-        }
+        if (data.timestamps?.finalizado) lineasTiempo.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
         
         const tiemposCalc = calcularTiempoEfectivo(data);
         const tiempoTotal = tiemposCalc.efectivo > 0 
@@ -1352,43 +1339,72 @@ function crearCardSolicitud(sol) {
     if (localStorage.getItem('rol') === 'admin') {
         adminBotones = '<div style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;"><button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button><button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button></div>';
     }
+    
     let servicioHTML = '';
     if (data.servicio) {
         servicioHTML = '<div class="info-row"><span>🏥 ' + data.servicio + '</span>';
-        if (data.numeroCama) {
-            servicioHTML += '<span>🛏️ ' + data.numeroCama + '</span>';
-        }
+        if (data.numeroCama) servicioHTML += '<span>🛏️ ' + data.numeroCama + '</span>';
         servicioHTML += '</div>';
     } else if (data.numeroCama) {
         servicioHTML = '<div class="info-row"><span>🛏️ ' + data.numeroCama + '</span></div>';
     }
+    
     let archivoHTML = '';
     if (data.archivoSolicitud) {
         const tipoArchivo = data.esPDF ? '📄 PDF' : '📷 Foto';
         archivoHTML = '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + tipoArchivo + ' - Ver solicitud</a></div>';
     }
-    return '<div class="solicitud-card-v2 ' + alerta + '" id="card-' + id + '"><div class="card-header"><div class="card-titulo"><strong>' + (data.nombrePaciente || '-') + '</strong><span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>' + indicadorProgramado + '</div>' + estadoBadge + '</div><div class="card-info"><div class="info-row"><span>🕐 ' + fechaHora + '</span><span class="tiempo">⏱️ ' + tiempo + '</span></div>' + servicioHTML + '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>' + (data.notas ? '<div class="info-row notas">📝 ' + data.notas + '</div>' : '') + '</div>' + archivoHTML + '<div class="card-actions">' + acciones + historialNotasHTML + adminBotones + '</div></div>';
+    
+    // === NUEVO: CSS class para programados pendientes ===
+    let cardClass = 'solicitud-card-v2 ' + alerta;
+    if (esProgramadoPendiente) cardClass += ' programado-pendiente-card';
+    
+    return '<div class="' + cardClass + '" id="card-' + id + '"><div class="card-header"><div class="card-titulo"><strong>' + (data.nombrePaciente || '-') + '</strong><span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>' + indicadorProgramado + '</div>' + estadoBadge + '</div><div class="card-info"><div class="info-row"><span>🕐 ' + fechaHora + '</span><span class="tiempo">⏱️ ' + tiempo + '</span></div>' + servicioHTML + '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>' + (data.notas ? '<div class="info-row notas">📝 ' + data.notas + '</div>' : '') + '</div>' + archivoHTML + '<div class="card-actions">' + acciones + historialNotasHTML + adminBotones + '</div></div>';
 }
 
 let unsubscribe = null;
 
+// === NUEVO: cargarSolicitudes con 5 contadores y clasificación programado_pendiente ===
 function cargarSolicitudes() {
     if (unsubscribe) unsubscribe();
     const q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
     unsubscribe = onSnapshot(q, (snapshot) => {
         let html = '';
-        let counts = { pendiente: 0, en_camino: 0, rechazado: 0, finalizado: 0 };
+        let counts = { 
+            pendiente: 0, 
+            programado_pendiente: 0,
+            en_camino: 0, 
+            rechazado: 0, 
+            finalizado: 0 
+        };
         let nuevasSolicitudes = 0;
 
-        // === CORRECCIÓN: Contar TODOS primero, antes del filtro ===
+        // === Contar TODOS primero, antes del filtro ===
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
+            const ahora = new Date();
+            
+            // === NUEVO: Clasificar programados vs urgentes ===
+            let estadoClasificado = data.estado;
+            if (data.estado === 'pendiente') {
+                if (data.esProgramado && data.horaProgramada) {
+                    const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+                    const dosHoras = 2 * 60 * 60 * 1000;
+                    if (horaProg <= new Date(ahora.getTime() + dosHoras)) {
+                        estadoClasificado = 'pendiente'; // Ya es hora o casi → URGENTE
+                    } else {
+                        estadoClasificado = 'programado_pendiente'; // Futuro → Programado
+                    }
+                } else {
+                    estadoClasificado = 'pendiente'; // No programado → URGENTE
+                }
+            }
             
             // Contadores globales (sin filtros)
-            if (counts[data.estado] !== undefined) counts[data.estado]++;
+            if (counts[estadoClasificado] !== undefined) counts[estadoClasificado]++;
             
-            // Notificaciones solo para nuevas pendientes
-            if (data.estado === 'pendiente' && !solicitudesAnteriores.has(docSnap.id)) {
+            // Notificaciones solo para nuevas pendientes URGENTES (no programados)
+            if (data.estado === 'pendiente' && !data.esProgramado && !solicitudesAnteriores.has(docSnap.id)) {
                 nuevasSolicitudes++;
                 mostrarNotificacionCompleta(
                     '🚨 Nueva Solicitud Rx Portatil',
@@ -1399,12 +1415,15 @@ function cargarSolicitudes() {
             }
         });
 
-        // Actualizar contadores en UI primero
+        // === NUEVO: Actualizar 5 contadores en UI ===
         const countPendiente = document.getElementById('countPendiente');
+        const countProgramado = document.getElementById('countProgramado');
         const countEnCamino = document.getElementById('countEnCamino');
         const countRechazado = document.getElementById('countRechazado');
         const countFinalizado = document.getElementById('countFinalizado');
+        
         if (countPendiente) countPendiente.textContent = counts.pendiente;
+        if (countProgramado) countProgramado.textContent = counts.programado_pendiente;
         if (countEnCamino) countEnCamino.textContent = counts.en_camino;
         if (countRechazado) countRechazado.textContent = counts.rechazado;
         if (countFinalizado) countFinalizado.textContent = counts.finalizado;
@@ -1412,8 +1431,28 @@ function cargarSolicitudes() {
         // === Ahora aplicar filtros solo para renderizar cards ===
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
+            const ahora = new Date();
             
-            if (estadoFiltro !== 'todos' && data.estado !== estadoFiltro) return;
+            // === NUEVO: Determinar estado clasificado para filtro ===
+            let estadoClasificado = data.estado;
+            if (data.estado === 'pendiente') {
+                if (data.esProgramado && data.horaProgramada) {
+                    const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+                    const dosHoras = 2 * 60 * 60 * 1000;
+                    if (horaProg <= new Date(ahora.getTime() + dosHoras)) {
+                        estadoClasificado = 'pendiente';
+                    } else {
+                        estadoClasificado = 'programado_pendiente';
+                    }
+                } else {
+                    estadoClasificado = 'pendiente';
+                }
+            }
+            
+            // Filtro de estado
+            if (estadoFiltro !== 'todos' && estadoClasificado !== estadoFiltro) return;
+            
+            // Filtro de fecha
             if (fechaFiltro && data.timestamps?.creado) {
                 const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
                 if (fechaDoc !== fechaFiltro) return;
