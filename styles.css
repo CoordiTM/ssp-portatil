@@ -256,6 +256,25 @@ body {
  background: #ebf5fb;
 }
 
+/* === NUEVO: Botón Programados Pendientes === */
+.btn-filtro.btn-programado {
+ background: #fff8e1;
+ color: #f39c12;
+ border: 2px solid #f39c12;
+}
+
+.btn-filtro.btn-programado:hover {
+ background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+ color: white;
+ border-color: #f39c12;
+}
+
+.btn-filtro.active#btn-programado_pendiente {
+ background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+ color: white;
+ border-color: #f39c12;
+}
+
 /* Lista de cards */
 .lista-cards {
  display: flex;
@@ -286,6 +305,12 @@ body {
 .solicitud-card-v2.programado-futuro {
  border-left-color: #9c27b0;
  background: #f3e5f5;
+}
+
+/* === NUEVO: Card para Programados Pendientes === */
+.solicitud-card-v2.programado-pendiente-card {
+ border-left: 4px solid #f39c12 !important;
+ background: linear-gradient(to right, #fef9e7 0%, #ffffff 100%) !important;
 }
 
 .card-header {
@@ -336,6 +361,17 @@ body {
 .estado-badge.camino { background: #e3f2fd; color: #1976d2; }
 .estado-badge.rechazado { background: #ffebee; color: #d32f2f; }
 .estado-badge.finalizado { background: #e8f5e9; color: #388e3c; }
+
+/* === NUEVO: Badge Programado Pendiente === */
+.estado-badge.programado-pendiente {
+ background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+ color: white;
+ padding: 4px 10px;
+ border-radius: 12px;
+ font-size: 0.75rem;
+ font-weight: 700;
+ text-transform: uppercase;
+}
 
 .card-info {
  margin-bottom: 10px;
@@ -550,6 +586,7 @@ body {
  min-width: 100%;
  }
 }
+
 /* Trazabilidad en consulta */
 .trazabilidad-estados {
  margin-top: 15px;
@@ -633,6 +670,7 @@ body {
  margin: 0;
  line-height: 1.4;
 }
+
 /* Botones admin en dashboard */
 .admin-actions {
  margin-top: 10px;
@@ -647,12 +685,8 @@ body {
  flex: 1;
  min-width: 140px;
 }
-/* Admin - Gestión de solicitudes */
-.estado-badge.pendiente { background: #fff3e0; color: #f57c00; }
-.estado-badge.en_camino { background: #e3f2fd; color: #1976d2; }
-.estado-badge.rechazado { background: #ffebee; color: #d32f2f; }
-.estado-badge.finalizado { background: #e8f5e9; color: #388e3c; }
 
+/* Admin - Gestión de solicitudes */
 .admin-actions {
  margin-top: 10px;
  border-top: 1px dashed #ccc;
@@ -682,6 +716,7 @@ body {
  z-index: 100;
  padding: 8px;
 }
+
 .menu-hamburger span {
  display: block;
  width: 25px;
@@ -691,6 +726,7 @@ body {
  border-radius: 2px;
  transition: 0.3s;
 }
+
 .dropdown-menu {
  display: none;
  position: absolute;
@@ -703,9 +739,11 @@ body {
  min-width: 180px;
  overflow: hidden;
 }
+
 .dropdown-menu.active {
  display: block;
 }
+
 .dropdown-menu a {
  display: block;
  padding: 12px 16px;
@@ -714,9 +752,11 @@ body {
  font-size: 0.9rem;
  border-bottom: 1px solid #eee;
 }
+
 .dropdown-menu a:hover {
  background: #f0f2f5;
 }
+
 .dropdown-menu a:last-child {
  border-bottom: none;
 }
@@ -731,9 +771,11 @@ body {
  justify-content: center;
  align-items: center;
 }
+
 .modal-overlay.active {
  display: flex;
 }
+
 .modal-content {
  background: white;
  padding: 25px;
@@ -742,24 +784,29 @@ body {
  max-width: 400px;
  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
 }
+
 .modal-content h3 {
  margin-bottom: 15px;
  color: #1a5276;
 }
+
 .modal-content .form-group {
  margin-bottom: 12px;
 }
+
 .modal-content input {
  width: 100%;
  padding: 10px;
  border: 2px solid #e0e0e0;
  border-radius: 6px;
 }
+
 .modal-buttons {
  display: flex;
  gap: 10px;
  margin-top: 15px;
 }
+
 .modal-buttons button {
  flex: 1;
  padding: 10px;
@@ -768,6 +815,7 @@ body {
  cursor: pointer;
  font-weight: 600;
 }
+
 .btn-guardar { background: #2e86ab; color: white; }
 .btn-cancelar { background: #eee; color: #333; }
 
@@ -784,19 +832,23 @@ body {
  align-items: center;
  user-select: none;
 }
+
 .acordeon-icon {
  font-size: 0.9rem;
  transition: transform 0.3s;
 }
+
 .acordeon-body {
  max-height: 80vh;
  overflow-y: auto;
  transition: max-height 0.3s ease-out;
 }
+
 .acordeon-body.collapsed {
  max-height: 0;
  overflow-y: hidden;
 }
+
 .acordeon-body.collapsed + .acordeon-icon,
 .acordeon-header:has(+ .collapsed) .acordeon-icon {
  transform: rotate(-90deg);
@@ -823,6 +875,7 @@ body {
  transition: transform 0.2s, opacity 0.2s;
  opacity: 0.8;
 }
+
 .btn-volver-arriba:hover {
  transform: translateY(-3px);
  opacity: 1;
@@ -834,6 +887,7 @@ body {
  color: white;
  border: none;
 }
+
 .btn-action.kanteron:hover {
  opacity: 0.9;
  transform: translateY(-2px);
@@ -852,54 +906,54 @@ body {
 
 /* ==================== BOTONES DE PAUSA ==================== */
 .btn-action.pausa {
-    background: #fff3e0;
-    color: #e65100;
-    border: 2px solid #ff9800;
+ background: #fff3e0;
+ color: #e65100;
+ border: 2px solid #ff9800;
 }
 
 .btn-action.pausa:hover {
-    background: #ffe0b2;
-    transform: translateY(-2px);
+ background: #ffe0b2;
+ transform: translateY(-2px);
 }
 
 .btn-action.reiniciar {
-    background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
-    color: #2e7d32;
-    border: 2px solid #4caf50;
-    animation: pulse-pausa 2s infinite;
+ background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
+ color: #2e7d32;
+ border: 2px solid #4caf50;
+ animation: pulse-pausa 2s infinite;
 }
 
 @keyframes pulse-pausa {
-    0%, 100% { 
-        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
-    }
-    50% { 
-        box-shadow: 0 0 0 8px rgba(76, 175, 80, 0);
-    }
+ 0%, 100% { 
+ box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+ }
+ 50% { 
+ box-shadow: 0 0 0 8px rgba(76, 175, 80, 0);
+ }
 }
 
 .btn-action.reiniciar:hover {
-    background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
-    transform: translateY(-2px);
+ background: linear-gradient(135deg, #c8e6c9 0%, #a5d6a7 100%);
+ transform: translateY(-2px);
 }
 
 /* Indicador de pausa activa en card */
 .solicitud-card-v2.pausa-activa {
-    border-left-color: #ff9800 !important;
-    background: #fff8f0 !important;
+ border-left-color: #ff9800 !important;
+ background: #fff8f0 !important;
 }
 
 .pausa-info {
-    background: #fff3e0;
-    border-left: 3px solid #ff9800;
-    padding: 8px 12px;
-    border-radius: 6px;
-    margin: 8px 0;
-    font-size: 0.85rem;
-    color: #e65100;
+ background: #fff3e0;
+ border-left: 3px solid #ff9800;
+ padding: 8px 12px;
+ border-radius: 6px;
+ margin: 8px 0;
+ font-size: 0.85rem;
+ color: #e65100;
 }
 
 .pausa-info strong {
-    display: block;
-    margin-bottom: 4px;
+ display: block;
+ margin-bottom: 4px;
 }
