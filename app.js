@@ -761,6 +761,24 @@ window.abrirModalEditarSolicitud = async function(id) {
         document.getElementById('editSolEstado').value = data.estado || 'pendiente';
         document.getElementById('editSolTecnologo').value = data.tecnologoAsignado || '';
 
+        // === NUEVO: Cargar campos de programación ===
+        const esProgramadoCheckbox = document.getElementById('editSolEsProgramado');
+        const horaProgramadaInput = document.getElementById('editSolHoraProgramada');
+        const grupoHoraProgramada = document.getElementById('grupoEditSolHoraProgramada');
+        
+        if (esProgramadoCheckbox) {
+            esProgramadoCheckbox.checked = data.esProgramado || false;
+        }
+        if (horaProgramadaInput && data.horaProgramada) {
+            const d = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+            horaProgramadaInput.value = d.toISOString().slice(0, 16);
+        } else if (horaProgramadaInput) {
+            horaProgramadaInput.value = '';
+        }
+        if (grupoHoraProgramada) {
+            grupoHoraProgramada.style.display = data.esProgramado ? 'block' : 'none';
+        }
+
         const toLocalInput = (ts) => {
             if (!ts) return '';
             const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -783,6 +801,10 @@ window.guardarEdicionSolicitud = async function() {
     const enCamino = document.getElementById('editSolEnCamino').value;
     const finalizado = document.getElementById('editSolFinalizado').value;
     const rechazado = document.getElementById('editSolRechazado').value;
+    
+    // === NUEVO: Leer campos de programación ===
+    const esProgramado = document.getElementById('editSolEsProgramado')?.checked || false;
+    const horaProgramadaInput = document.getElementById('editSolHoraProgramada')?.value;
 
     const toTimestamp = (val) => val ? Timestamp.fromDate(new Date(val)) : null;
 
@@ -795,6 +817,9 @@ window.guardarEdicionSolicitud = async function() {
         notas: document.getElementById('editSolNotas').value.trim(),
         estado: document.getElementById('editSolEstado').value,
         tecnologoAsignado: document.getElementById('editSolTecnologo').value.trim() || null,
+        // === NUEVO: Campos de programación ===
+        esProgramado: esProgramado,
+        horaProgramada: esProgramado && horaProgramadaInput ? toTimestamp(horaProgramadaInput) : null,
         'timestamps.creado': toTimestamp(creado),
         'timestamps.enCamino': toTimestamp(enCamino),
         'timestamps.finalizado': toTimestamp(finalizado),
