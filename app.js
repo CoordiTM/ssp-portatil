@@ -1670,9 +1670,66 @@ window.cargarSolicitudesAdmin = function() {
                 'rechazado': '❌ No atendido',
                 'finalizado': '✅ Atendido'
             };
+            
+            // === NUEVO: Calcular tiempo de atención para finalizados ===
+            let tiempoInfo = '';
+            if (data.estado === 'finalizado' && data.timestamps?.creado && data.timestamps?.finalizado) {
+                const tiempos = calcularTiempoEfectivo(data);
+                tiempoInfo = '<div style="background:#e8f5e9;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;">';
+                tiempoInfo += '<strong style="color:#2e7d32;">⏱️ Tiempo total: ' + formatearTiempoHHMMSS(tiempos.efectivo) + '</strong>';
+                if (tiempos.pausasTiempo > 0) {
+                    tiempoInfo += ' (+' + formatearTiempoHHMMSS(tiempos.pausasTiempo) + ' en pausas)';
+                }
+                tiempoInfo += '</div>';
+            }
+            
+            // === NUEVO: Trazabilidad de estados con timestamps ===
+            let trazabilidadHTML = '';
+            let estadosLines = [];
+            if (data.timestamps?.creado) {
+                estadosLines.push('📋 Registrado: ' + formatearFechaHora(data.timestamps.creado));
+            }
+            if (data.timestamps?.enCamino) {
+                estadosLines.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
+            }
+            if (data.pausas && data.pausas.length > 0) {
+                data.pausas.forEach((p, idx) => {
+                    const inicio = p.inicio ? formatearFechaHora(p.inicio) : '-';
+                    const fin = p.reinicioReal ? formatearFechaHora(p.reinicioReal) : (p.reinicioProgramado ? formatearFechaHora(p.reinicioProgramado) + ' (prog)' : '...');
+                    estadosLines.push('⏸️ Pausa ' + (idx + 1) + ': ' + inicio + ' → ' + fin);
+                });
+            }
+            if (data.timestamps?.finalizado) {
+                estadosLines.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
+            }
+            if (data.timestamps?.rechazado) {
+                estadosLines.push('❌ Rechazado: ' + formatearFechaHora(data.timestamps.rechazado));
+            }
+            if (estadosLines.length > 0) {
+                trazabilidadHTML = '<div style="background:#f0f7ff;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;line-height:1.6;">';
+                trazabilidadHTML += '<strong style="color:#1a5276;">📊 Trazabilidad:</strong><br>';
+                trazabilidadHTML += estadosLines.join('<br>');
+                trazabilidadHTML += '</div>';
+            }
+            
+            // === NUEVO: Historial de notas de tecnólogos ===
+            let notasHTML = '';
+            if (data.historialNotas && data.historialNotas.length > 0) {
+                notasHTML = '<div style="background:#fff8f0;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;">';
+                notasHTML += '<strong style="color:#e65100;">📝 Notas de Tecnólogos (' + data.historialNotas.length + '):</strong><br>';
+                data.historialNotas.forEach((nota, idx) => {
+                    notasHTML += '<div style="border-left:2px solid #ff9800;padding-left:8px;margin:4px 0;">';
+                    notasHTML += '<span style="color:#666;font-size:11px;">📅 ' + nota.fecha + ' | 👤 ' + nota.tecnologo + '</span><br>';
+                    notasHTML += '<span style="color:#333;">' + nota.texto + '</span>';
+                    notasHTML += '</div>';
+                });
+                notasHTML += '</div>';
+            }
+            
             const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
                 day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
             }) || '-';
+            
             html += '<div class="solicitud-card-v2" style="border-left: 4px solid #1a5276;">';
             html += '<div class="card-header">';
             html += '<div class="card-titulo">';
@@ -1694,6 +1751,12 @@ window.cargarSolicitudesAdmin = function() {
                 html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
             }
             html += '</div>';
+            
+            // === NUEVO: Insertar tiempo, trazabilidad y notas ===
+            html += tiempoInfo;
+            html += trazabilidadHTML;
+            html += notasHTML;
+            
             if (data.archivoSolicitud) {
                 const esPDF = data.esPDF ? '📄 PDF' : '📷 Foto';
                 html += '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + esPDF + ' - Ver solicitud</a></div>';
