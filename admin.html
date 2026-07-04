@@ -220,7 +220,7 @@
     </script>
     <button class="btn-volver-arriba" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Volver arriba">↑</button>
 
-    <!-- Modal Editar Solicitud -->
+        <!-- Modal Editar Solicitud -->
     <div class="modal-overlay" id="modalEditarSolicitud">
         <div class="modal-content modal-wide">
             <h3>✏️ Editar Solicitud</h3>
@@ -274,6 +274,19 @@
                 <textarea id="editSolNotas" rows="2"></textarea>
             </div>
 
+            <!-- === NUEVO: Campos de Programación === -->
+            <h4 style="margin-top: 15px; color: #1a5276;">⏰ Programación</h4>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="editSolEsProgramado" onchange="toggleEditSolHoraProgramada()"> 
+                    Solicitud Programada
+                </label>
+            </div>
+            <div class="form-group" id="grupoEditSolHoraProgramada" style="display:none;">
+                <label>Hora Programada:</label>
+                <input type="datetime-local" id="editSolHoraProgramada">
+            </div>
+
             <h4 style="margin-top: 15px; color: #1a5276;">🕐 Timestamps (Fechas/Hora)</h4>
             <div class="form-row">
                 <div class="form-group">
@@ -306,5 +319,15 @@
         <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
             <p>© 2026 SSP Rx Portátil - Desarrollado por Flurolab Academy</p>
         </footer>
+
+    <script>
+        function toggleEditSolHoraProgramada() {
+            const checkbox = document.getElementById('editSolEsProgramado');
+            const grupo = document.getElementById('grupoEditSolHoraProgramada');
+            if (grupo) {
+                grupo.style.display = checkbox.checked ? 'block' : 'none';
+            }
+        }
+    </script>
     </body>
 </html>
