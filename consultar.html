@@ -5,10 +5,251 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Consultar Solicitud - HNASS</title>
     <link rel="stylesheet" href="styles.css">
+    <style>
+        /* ===== ESTILOS ADICIONALES PARA FILTROS ===== */
+        .filtros-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        @media (max-width: 500px) {
+            .filtros-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .filtros-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .btn-buscar {
+            background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn-buscar:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+        }
+
+        .btn-limpiar {
+            background: #f5f5f5;
+            color: #616161;
+            border: 1px solid #e0e0e0;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .btn-limpiar:hover {
+            background: #eeeeee;
+        }
+
+        .resultados-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .resultados-header h3 {
+            font-size: 16px;
+            color: #424242;
+            margin: 0;
+        }
+
+        .resultados-count {
+            background: #e3f2fd;
+            color: #1565c0;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+        }
+
+        .consulta-card {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+
+        .consulta-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-color: #bbdefb;
+        }
+
+        .consulta-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .consulta-card-titulo {
+            font-weight: 700;
+            color: #212121;
+            font-size: 15px;
+        }
+
+        .consulta-card-dni {
+            font-size: 13px;
+            color: #757575;
+            margin-top: 2px;
+        }
+
+        .consulta-card-estado {
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .estado-pendiente { background: #fff3e0; color: #e65100; }
+        .estado-en_camino { background: #e3f2fd; color: #1565c0; }
+        .estado-finalizado { background: #e8f5e9; color: #2e7d32; }
+        .estado-rechazado { background: #ffebee; color: #c62828; }
+
+        .consulta-card-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 8px;
+            font-size: 13px;
+            color: #616161;
+            margin-bottom: 10px;
+        }
+
+        .consulta-card-info span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .consulta-card-tiempos {
+            font-size: 12px;
+            color: #9e9e9e;
+            padding-top: 8px;
+            border-top: 1px solid #f5f5f5;
+        }
+
+        .consulta-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: #9e9e9e;
+        }
+
+        .consulta-empty-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .kanteron-btn {
+            background: linear-gradient(135deg, #2e7d32 0%, #4caf50 100%);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            margin-top: 8px;
+            transition: all 0.2s;
+        }
+
+        .kanteron-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(46, 125, 50, 0.3);
+        }
+
+        .ocr-badge-mini {
+            background: #fff8e1;
+            color: #e65100;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .menu-hamburger {
+            cursor: pointer;
+            display: inline-block;
+            padding: 10px;
+            position: absolute;
+            left: 10px;
+            top: 10px;
+        }
+
+        .menu-hamburger span {
+            display: block;
+            width: 25px;
+            height: 3px;
+            background: white;
+            margin: 5px 0;
+            border-radius: 2px;
+        }
+
+        .dropdown-menu {
+            display: none;
+            position: absolute;
+            top: 50px;
+            left: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            min-width: 200px;
+        }
+
+        .dropdown-menu.active {
+            display: block;
+        }
+
+        .dropdown-menu a {
+            display: block;
+            padding: 12px 16px;
+            color: #333;
+            text-decoration: none;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .dropdown-menu a:hover {
+            background: #f5f5f5;
+        }
+    </style>
+<base target="_blank">
 </head>
 <body>
     <div class="container">
         <header class="header-main">
+            <div class="menu-hamburger" onclick="toggleMenu()">
+                <span></span><span></span><span></span>
+            </div>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="index.html">🏠 Volver al inicio</a>
+            </div>
             <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
             <p>Consultar estado de solicitud</p>
         </header>
@@ -16,23 +257,77 @@
         <section class="card">
             <h2>🔍 Consultar Estado</h2>
             <form id="formConsulta">
-                <div class="form-group">
-                    <label>DNI del paciente:</label>
-                    <input type="text" id="codigoSeguimiento" placeholder="Ingrese el DNI del paciente" required>
-                    <small>Ingrese el DNI que usó al registrar la solicitud</small>
+                <div class="filtros-grid">
+                    <div class="form-group">
+                        <label>DNI del paciente:</label>
+                        <input type="text" id="filtroDNI" placeholder="Ingrese el DNI" maxlength="8">
+                        <small>Ingrese el DNI que usó al registrar la solicitud</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Apellidos y Nombres:</label>
+                        <input type="text" id="filtroNombre" placeholder="Ej: BORJA VILLANUEVA">
+                        <small>Búsqueda parcial (no necesita ser exacto)</small>
+                    </div>
                 </div>
-                <button type="submit" class="btn-primary">🔍 Consultar</button>
+
+                <div class="filtros-grid">
+                    <div class="form-group">
+                        <label>Servicio:</label>
+                        <select id="filtroServicio">
+                            <option value="">Todos los servicios</option>
+                        </select>
+                        <small>Seleccione un servicio específico</small>
+                    </div>
+                    <div class="form-group">
+                        <label></label>
+                        <div></div>
+                    </div>
+                </div>
+
+                <div class="filtros-grid">
+                    <div class="form-group">
+                        <label>Fecha Desde:</label>
+                        <input type="date" id="filtroFechaDesde">
+                        <small>Solicitudes desde esta fecha</small>
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha Hasta:</label>
+                        <input type="date" id="filtroFechaHasta">
+                        <small>Solicitudes hasta esta fecha</small>
+                    </div>
+                </div>
+
+                <div class="filtros-actions">
+                    <button type="submit" class="btn-buscar">🔍 Buscar</button>
+                    <button type="button" class="btn-limpiar" id="btnLimpiar">🔄 Limpiar</button>
+                </div>
             </form>
         </section>
 
-        <div id="resultadoConsulta" class="consulta-resultado"></div>
+        <section class="card" id="resultadosSection" style="display: none;">
+            <div class="resultados-header">
+                <h3>📋 Resultados</h3>
+                <span class="resultados-count" id="contadorResultados">0 encontrados</span>
+            </div>
+            <div id="resultadoConsulta"></div>
+        </section>
 
         <a href="index.html" class="btn-volver">← Volver al inicio</a>
     </div>
 
     <script type="module" src="app.js"></script>
-        <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
-            <p>© 2026 SSP Rx Portátil - Desarrollado por Flurolab Academy</p>
-        </footer>
-    </body>
+    <script>
+        function toggleMenu() {
+            document.getElementById('dropdownMenu').classList.toggle('active');
+        }
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.menu-hamburger') && !e.target.closest('.dropdown-menu')) {
+                document.getElementById('dropdownMenu').classList.remove('active');
+            }
+        });
+    </script>
+    <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
+        <p>© 2026 SSP Rx Portátil - Desarrollado por Flurolab Academy</p>
+    </footer>
+</body>
 </html>
