@@ -662,6 +662,7 @@ window.exportarProduccionPDF = async function() {
                 paciente: d.nombrePaciente,
                 servicio: d.servicio || '-',
                 numeroCama: d.numeroCama || '-',
+                numeroSolicitud: d.ocrData?.numeroSolicitud || '-',
                 tiempoAtencion: tiempoAtencion,
                 notas: d.notas || ''
             });
@@ -681,8 +682,8 @@ window.exportarProduccionPDF = async function() {
     pdf.text('Periodo: ' + desdeInput + ' al ' + hastaInput, 14, 29);
     pdf.text('Total atenciones: ' + produccion.length, 14, 35);
 
-    const headers = ['Fecha/Hora', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
-    const data = produccion.map(p => [p.fechaHora, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas]);
+    const headers = ['Fecha/Hora', 'DNI', 'Paciente', 'Servicio', 'Cama', 'N° Solicitud', 'Tiempo', 'Notas'];
+    const data = produccion.map(p => [p.fechaHora, p.dni, p.paciente, p.servicio, p.numeroCama, p.numeroSolicitud, p.tiempoAtencion, p.notas]);
 
     pdf.autoTable({
         head: [headers],
