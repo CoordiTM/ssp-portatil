@@ -1185,102 +1185,179 @@ if (formSolicitud) {
     });
 }
 
-// ==================== PAGINA: CONSULTA ====================
+// ==================== PAGINA: CONSULTA (CON FILTROS) ====================
 
 const formConsulta = document.getElementById('formConsulta');
-if (formConsulta) {
-    formConsulta.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const dni = document.getElementById('codigoSeguimiento').value.trim();
-        const resultado = document.getElementById('resultadoConsulta');
-        if (!dni) {
-            resultado.innerHTML = '<p class="empty">Ingrese un DNI para consultar</p>';
+const resultadoConsulta = document.getElementById('resultadoConsulta');
+const resultadosSection = document.getElementById('resultadosSection');
+const contadorResultados = document.getElementById('contadorResultados');
+const btnLimpiar = document.getElementById('btnLimpiar');
+const filtroServicio = document.getElementById('filtroServicio');
+
+// Cargar servicios en el filtro
+if (filtroServicio) {
+    cargarServiciosSelect('filtroServicio');
+}
+
+// Función para aplicar filtros
+async function buscarSolicitudes() {
+    if (!resultadoConsulta) return;
+
+    const dniFiltro = document.getElementById('filtroDNI').value.trim();
+    const nombreFiltro = document.getElementById('filtroNombre').value.trim().toUpperCase();
+    const servicioFiltro = document.getElementById('filtroServicio').value;
+    const fechaDesde = document.getElementById('filtroFechaDesde').value;
+    const fechaHasta = document.getElementById('filtroFechaHasta').value;
+
+    resultadoConsulta.innerHTML = '<p style="text-align:center;padding:20px;">⏳ Buscando...</p>';
+    resultadosSection.style.display = 'block';
+
+    try {
+        // Query base ordenada por fecha
+        let q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
+
+        const snapshot = await getDocs(q);
+        let solicitudes = [];
+
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const id = docSnap.id;
+
+            // Filtro por DNI (exacto)
+            if (dniFiltro && data.dniPaciente !== dniFiltro) return;
+
+            // Filtro por Nombre (búsqueda parcial, case-insensitive)
+            if (nombreFiltro) {
+                const nombreUpper = (data.nombrePaciente || '').toUpperCase();
+                if (!nombreUpper.includes(nombreFiltro)) return;
+            }
+
+            // Filtro por Servicio
+            if (servicioFiltro && data.servicio !== servicioFiltro) return;
+
+            // Filtro por Fecha Desde
+            if (fechaDesde && data.timestamps?.creado) {
+                const fechaCreado = data.timestamps.creado.toDate();
+                const fechaDesdeObj = new Date(fechaDesde + 'T00:00:00');
+                if (fechaCreado < fechaDesdeObj) return;
+            }
+
+            // Filtro por Fecha Hasta
+            if (fechaHasta && data.timestamps?.creado) {
+                const fechaCreado = data.timestamps.creado.toDate();
+                const fechaHastaObj = new Date(fechaHasta + 'T23:59:59');
+                if (fechaCreado > fechaHastaObj) return;
+            }
+
+            solicitudes.push({ id, data });
+        });
+
+        // Actualizar contador
+        contadorResultados.textContent = solicitudes.length + ' encontrado' + (solicitudes.length !== 1 ? 's' : '');
+
+        // Renderizar resultados
+        if (solicitudes.length === 0) {
+            resultadoConsulta.innerHTML = '<div class="consulta-empty"><div class="consulta-empty-icon">😕</div><p>No se encontraron solicitudes con esos filtros</p></div>';
             return;
         }
-        try {
-            const q = query(collection(db, 'solicitudes'), where('dniPaciente', '==', dni), orderBy('timestamps.creado', 'desc'));
-            const snapshot = await getDocs(q);
-            if (snapshot.empty) {
-                resultado.innerHTML = '<p class="empty">❌ No se encontro solicitud con ese DNI</p>';
-                return;
+
+        let html = '';
+        solicitudes.forEach((sol) => {
+            const data = sol.data;
+            const id = sol.id;
+
+            const estadosLabels = {
+                'pendiente': '⏳ Pendiente',
+                'en_camino': '🚶 En camino',
+                'rechazado': '❌ No atendido',
+                'finalizado': '✅ Atendido'
+            };
+
+            const estadoClass = 'estado-' + data.estado;
+
+            let infoProgramado = '';
+            if (data.esProgramado && data.horaProgramada) {
+                infoProgramado = '<span>⏰ ' + formatearFechaHora(data.horaProgramada) + ' (prog.)</span>';
             }
-            let html = '';
-            snapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                const estadosLabels = {
-                    'pendiente': '⏳ Pendiente',
-                    'en_camino': '🚶 En camino',
-                    'rechazado': '❌ No atendido',
-                    'finalizado': '✅ Atendido'
-                };
-                let infoProgramado = '';
-                if (data.esProgramado && data.horaProgramada) {
-                    infoProgramado = '<p><strong>⏰ Programado para:</strong> ' + formatearFechaHora(data.horaProgramada) + '</p>';
-                }
-                let historialNotasHTML = '';
-                if (data.historialNotas && data.historialNotas.length > 0) {
-                    historialNotasHTML = '<div class="historial-notas-consulta"><h4>📝 Trazabilidad - Registro de eventos:</h4>';
-                    data.historialNotas.forEach((nota) => {
-                        historialNotasHTML += '<div class="nota-item-consulta"><div class="nota-header"><span class="nota-fecha">📅 ' + nota.fecha + '</span><span class="nota-tecnologo">👤 ' + nota.tecnologo + '</span></div><p class="nota-texto">' + nota.texto + '</p></div>';
-                    });
-                    historialNotasHTML += '</div>';
-                }
-                let trazabilidadHTML = '';
-                let estadosLines = [];
-                if (data.timestamps && data.timestamps.creado) {
-                    estadosLines.push('📋 Registrado: ' + formatearFechaHora(data.timestamps.creado));
-                }
-                if (data.timestamps && data.timestamps.enCamino) {
-                    estadosLines.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
-                }
-                if (data.timestamps && data.timestamps.finalizado) {
-                    estadosLines.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
-                }
-                if (data.timestamps && data.timestamps.rechazado) {
-                    estadosLines.push('❌ No atendido: ' + formatearFechaHora(data.timestamps.rechazado));
-                }
-                if (estadosLines.length > 0) {
-                    trazabilidadHTML = '<div class="trazabilidad-estados"><h4>📊 Trazabilidad de estados:</h4>';
-                    estadosLines.forEach((line) => {
-                        trazabilidadHTML += '<p class="estado-line">' + line + '</p>';
-                    });
-                    trazabilidadHTML += '</div>';
-                }
-                let archivoHTML = '';
-                if (data.archivoSolicitud) {
-                    const tipoArchivo = data.esPDF ? '📄 PDF' : '📷 Foto';
-                    archivoHTML = '<p><strong>📎 Archivo:</strong> <a href="' + data.archivoSolicitud + '" target="_blank">' + tipoArchivo + ' - Ver solicitud</a></p>';
-                }
-                html += '<div class="card">';
-                html += '<h3>📋 Solicitud - ' + formatearFechaHora(data.timestamps.creado) + '</h3>';
-                html += '<p><strong>👤 Paciente:</strong> ' + data.nombrePaciente + '</p>';
-                if (data.servicio) {
-                    html += '<p><strong>🏥 Servicio:</strong> ' + data.servicio + '</p>';
-                }
-                if (data.numeroCama) {
-                    html += '<p><strong>🛏️ Cama/Ubicación:</strong> ' + data.numeroCama + '</p>';
-                }
-                html += infoProgramado;
-                html += '<p><strong>⚡ Estado actual:</strong> <span class="estado-' + data.estado + '">' + estadosLabels[data.estado] + '</span></p>';
-                if (data.tecnologoAsignado) {
-                    html += '<p><strong>🔬 Tecnologo asignado:</strong> ' + data.tecnologoAsignado + '</p>';
-                }
-                if (data.estado === 'finalizado' && data.dniPaciente) {
-                    html += '<button onclick="abrirKanteron(\'' + data.dniPaciente + '\')" class="btn-primary" style="margin-top:10px; background: linear-gradient(135deg, #2e7d32 0%, #4caf50 100%);">🔍 Kanteron PACS</button>';
-                }
-                if (data.motivoRechazo) {
-                    html += '<p><strong>❌ Motivo no atencion:</strong> ' + data.motivoRechazo + '</p>';
-                }
-                html += archivoHTML;
-                html += trazabilidadHTML;
-                html += historialNotasHTML;
-                html += '</div>';
-            });
-            resultado.innerHTML = html;
-        } catch (error) {
-            resultado.innerHTML = '<p class="empty">❌ Error: ' + error.message + '</p>';
-        }
+
+            let ocrInfo = '';
+            if (data.ocrData?.numeroSolicitud) {
+                ocrInfo = '<span class="ocr-badge-mini">📋 Sol: ' + data.ocrData.numeroSolicitud + '</span>';
+            }
+            if (data.ocrData?.numeroHistoria) {
+                ocrInfo += '<span class="ocr-badge-mini">📁 HC: ' + data.ocrData.numeroHistoria + '</span>';
+            }
+
+            let tiempoInfo = '';
+            if (data.estado === 'finalizado' && data.timestamps?.creado && data.timestamps?.finalizado) {
+                const tiempos = calcularTiempoEfectivo(data);
+                tiempoInfo = '<div class="consulta-card-tiempos">⏱️ Tiempo: ' + formatearTiempoHHMMSS(tiempos.efectivo) + '</div>';
+            } else if (data.estado !== 'finalizado' && data.estado !== 'rechazado') {
+                tiempoInfo = '<div class="consulta-card-tiempos">⏱️ ' + tiempoTranscurrido(data.timestamps?.creado, data.horaProgramada, data.estado, data.timestamps?.finalizado, data.timestamps?.rechazado, data.esProgramado) + '</div>';
+            }
+
+            let kanteronBtn = '';
+            if (data.estado === 'finalizado' && data.dniPaciente) {
+                kanteronBtn = '<button onclick="abrirKanteron('' + data.dniPaciente + '')" class="kanteron-btn">🔍 Kanteron PACS</button>';
+            }
+
+            html += '<div class="consulta-card">';
+            html += '<div class="consulta-card-header">';
+            html += '<div><div class="consulta-card-titulo">' + (data.nombrePaciente || '-') + ocrInfo + '</div>';
+            html += '<div class="consulta-card-dni">DNI: ' + (data.dniPaciente || '-') + '</div></div>';
+            html += '<span class="consulta-card-estado ' + estadoClass + '">' + estadosLabels[data.estado] + '</span>';
+            html += '</div>';
+            html += '<div class="consulta-card-info">';
+            html += '<span>🏥 ' + (data.servicio || '-') + '</span>';
+            html += '<span>🛏️ ' + (data.numeroCama || '-') + '</span>';
+            html += '<span>🙋 ' + (data.solicitadoPor || '-') + '</span>';
+            html += '<span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span>';
+            html += '<span>🕐 ' + formatearFechaHora(data.timestamps?.creado) + '</span>';
+            if (infoProgramado) html += infoProgramado;
+            html += '</div>';
+            html += tiempoInfo;
+            if (kanteronBtn) html += kanteronBtn;
+            html += '</div>';
+        });
+
+        resultadoConsulta.innerHTML = html;
+
+    } catch (error) {
+        console.error('Error en búsqueda:', error);
+        resultadoConsulta.innerHTML = '<div class="consulta-empty"><div class="consulta-empty-icon">❌</div><p>Error: ' + error.message + '</p></div>';
+    }
+}
+
+// Eventos
+if (formConsulta) {
+    formConsulta.addEventListener('submit', (e) => {
+        e.preventDefault();
+        buscarSolicitudes();
     });
+}
+
+if (btnLimpiar) {
+    btnLimpiar.addEventListener('click', () => {
+        document.getElementById('filtroDNI').value = '';
+        document.getElementById('filtroNombre').value = '';
+        document.getElementById('filtroServicio').value = '';
+        document.getElementById('filtroFechaDesde').value = '';
+        document.getElementById('filtroFechaHasta').value = '';
+        resultadoConsulta.innerHTML = '';
+        resultadosSection.style.display = 'none';
+        contadorResultados.textContent = '0 encontrados';
+    });
+}
+
+// Búsqueda automática si hay DNI en URL (compatibilidad)
+const urlParams = new URLSearchParams(window.location.search);
+const dniFromUrl = urlParams.get('dni');
+if (dniFromUrl) {
+    const filtroDNI = document.getElementById('filtroDNI');
+    if (filtroDNI) {
+        filtroDNI.value = dniFromUrl;
+        buscarSolicitudes();
+    }
 }
 
 // ==================== PAGINA: LOGIN ====================
