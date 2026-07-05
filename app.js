@@ -1298,7 +1298,7 @@ async function buscarSolicitudes() {
 
             let kanteronBtn = '';
             if (data.estado === 'finalizado' && data.dniPaciente) {
-                kanteronBtn = '<button onclick="abrirKanteron('' + data.dniPaciente + '')" class="kanteron-btn">🔍 Kanteron PACS</button>';
+                kanteronBtn = '<button onclick="abrirKanteron(\'' + data.dniPaciente + '\')" class="kanteron-btn">🔍 Kanteron PACS</button>';
             }
 
             html += '<div class="consulta-card">';
