@@ -61,8 +61,7 @@ function parsearDatosESSALUD(texto) {
     };
 
     const textoNormalizado = texto.replace(/[ 	]+/g, ' ').trim();
-    const lineas = textoNormalizado.split('
-').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
+    const lineas = textoNormalizado.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
     const textoUpper = textoNormalizado.toUpperCase();
 
     // NRO. DE SOLICITUD
@@ -116,8 +115,8 @@ function parsearDatosESSALUD(texto) {
     }
 
     // EXAMEN SOLICITADO
-    const matchExamen = textoUpper.match(/EXAMEN\s*RADIOLOGICO\s*DE\s*([^
-]{10,200}?)(?=\d{5}|\s*INDICACIONES|\s*INDICACIONE|\s*AREA|\s*RADIOLOGIA\s*DIAGNOSTICA|$)/);
+    const matchExamen = textoUpper.match(/EXAMEN\s*RADIOLOGICO\s*DE\s*([^\n]
+{10,200}?)(?=\d{5}|\s*INDICACIONES|\s*INDICACIONE|\s*AREA|\s*RADIOLOGIA\s*DIAGNOSTICA|$)/);
     if (matchExamen) {
         datos.examen = 'EXAMEN RADIOLOGICO DE ' + matchExamen[1].trim().replace(/\s+/g, ' ');
     } else {
