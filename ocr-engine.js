@@ -6,14 +6,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dis
 
 /**
  * Convierte un archivo PDF a imagen (canvas) para OCR
- * @param {File} file - Archivo PDF
- * @param {number} scale - Escala de renderizado (default 2.0 para mejor calidad OCR)
- * @returns {Promise<HTMLCanvasElement>}
  */
 async function pdfToCanvas(file, scale = 2.0) {
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-    const page = await pdf.getPage(1); // Primera página
+    const page = await pdf.getPage(1);
 
     const viewport = page.getViewport({ scale });
     const canvas = document.createElement('canvas');
@@ -27,21 +24,14 @@ async function pdfToCanvas(file, scale = 2.0) {
 
 /**
  * Preprocesamiento de imagen para mejorar OCR
- * - Escala de grises
- * - Aumento de contraste
- * - Binarización adaptativa (simple)
- * @param {HTMLCanvasElement} canvas
- * @returns {HTMLCanvasElement}
  */
 function preprocesarImagen(canvas) {
     const ctx = canvas.getContext('2d');
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const data = imageData.data;
 
-    // Convertir a escala de grises + aumentar contraste
     for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        // Aumentar contraste: factor 1.5, centrado en 128
         const contrasted = Math.min(255, Math.max(0, (gray - 128) * 1.5 + 128));
         data[i] = contrasted;
         data[i + 1] = contrasted;
@@ -54,9 +44,6 @@ function preprocesarImagen(canvas) {
 
 /**
  * Ejecuta OCR con Tesseract.js
- * @param {HTMLCanvasElement} canvas
- * @param {Function} onProgress - Callback para progreso (0-100)
- * @returns {Promise<{text: string, confidence: number}>}
  */
 async function ejecutarOCR(canvas, onProgress) {
     const worker = await Tesseract.createWorker('spa', 1, {
@@ -67,7 +54,6 @@ async function ejecutarOCR(canvas, onProgress) {
         }
     });
 
-    // Configurar whitelist para reducir errores en documentos médicos
     await worker.setParameters({
         tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÁÉÍÓÚÑáéíóúñ0123456789 .,;:-_/()',
         preserve_interword_spaces: '1'
@@ -84,8 +70,7 @@ async function ejecutarOCR(canvas, onProgress) {
 
 /**
  * Parser de datos ESSALUD - Extrae campos específicos del texto OCR
- * @param {string} texto - Texto crudo del OCR
- * @returns {Object} Datos extraídos
+ * VERSIÓN CORREGIDA: maneja formato donde etiquetas y valores están en líneas separadas
  */
 function parsearDatosESSALUD(texto) {
     const datos = {
@@ -105,50 +90,101 @@ function parsearDatosESSALUD(texto) {
         fechaAtencion: null
     };
 
-    const textoLimpio = texto.toUpperCase().replace(/\s+/g, ' ').trim();
+    // Normalizar: eliminar espacios múltiples pero preservar saltos de línea
+    const textoNormalizado = texto.replace(/[ 	]+/g, ' ').trim();
+    const lineas = textoNormalizado.split(/
+/).map(l => l.trim()).filter(l => l.length > 0);
+    const textoLimpio = textoNormalizado.toUpperCase();
 
     // === NRO. DE SOLICITUD ===
-    // Patrones: "Nro.de Solicitud 1331054", "Nro. de Solicitud 1331054", "Nro de Solicitud 1331054"
-    const matchSolicitud = textoLimpio.match(/NRO\.?\s*DE\s*SOLICITUD\s*(\d{6,10})/i) ||
-                           textoLimpio.match(/NRO\.?\s*SOLICITUD\s*(\d{6,10})/i) ||
-                           textoLimpio.match(/SOLICITUD\s*(\d{6,10})/i);
-    if (matchSolicitud) datos.numeroSolicitud = matchSolicitud[1];
+    // Busca: "Nro.de Solicitud 1331054" o "Nro. de Solicitud 1331054"
+    const matchSolicitud = textoLimpio.match(/NRO\.?\s*DE?\s*SOLICITUD\s*(\d{6,10})/i);
+    if (matchSolicitud) {
+        datos.numeroSolicitud = matchSolicitud[1];
+    } else {
+        // Fallback: buscar en líneas individuales
+        for (let i = 0; i < lineas.length; i++) {
+            if (/NRO\.?\s*DE?\s*SOLICITUD/i.test(lineas[i]) && i + 1 < lineas.length) {
+                const siguiente = lineas[i + 1].match(/^(\d{6,10})$/);
+                if (siguiente) { datos.numeroSolicitud = siguiente[1]; break; }
+            }
+        }
+    }
 
     // === DNI ===
-    // Patrones: "D.N.I. 04031142", "DNI 04031142", "Documento de Identidad D.N.I. 04031142"
-    const matchDNI = textoLimpio.match(/D\.?N\.?I\.?\s*(\d{8})/i) ||
-                     textoLimpio.match(/DOCUMENTO\s*DE\s*IDENTIDAD\s*D\.?N\.?I\.?\s*(\d{8})/i) ||
-                     textoLimpio.match(/IDENTIDAD\s*D\.?N\.?I\.?\s*(\d{8})/i);
-    if (matchDNI) datos.dni = matchDNI[1];
+    // El PDF tiene: "Documento de Identidad" en una línea, "D.N.I. 04031142" en otra
+    // O a veces: "D.N.I." en una línea y "04031142" en la siguiente
+    const matchDNI = textoLimpio.match(/D\.?N\.?I\.?\s*(\d{8})/i);
+    if (matchDNI) {
+        datos.dni = matchDNI[1];
+    } else {
+        // Buscar línea que contenga DNI o Documento de Identidad
+        for (let i = 0; i < lineas.length; i++) {
+            const lineaUpper = lineas[i].toUpperCase();
+            if (/D\.?N\.?I\.?|DOCUMENTO\s*DE\s*IDENTIDAD/i.test(lineaUpper)) {
+                // Revisar esta línea y la siguiente
+                const matchEnLinea = lineas[i].match(/(\d{8})/);
+                if (matchEnLinea) { datos.dni = matchEnLinea[1]; break; }
+                if (i + 1 < lineas.length) {
+                    const matchSiguiente = lineas[i + 1].match(/^(\d{8})$/);
+                    if (matchSiguiente) { datos.dni = matchSiguiente[1]; break; }
+                }
+            }
+        }
+    }
 
     // === NOMBRES Y APELLIDOS ===
-    // Patrón: "Nombre y Apellidos Paciente BORJA VILLANUEVA NELLY NEYME"
-    // Buscamos después de "PACIENTE" o "NOMBRE Y APELLIDOS" hasta el siguiente campo conocido
-    const matchNombres = textoLimpio.match(/NOMBRE\s*Y\s*APELLIDOS\s*PACIENTE\s*([A-Z\s]{10,60}?)(?=\s*NRO\s*DE\s*HISTORIA|\s*NRO\s*DE\s*SOLICITUD|\s*DOCUMENTO|\s*TIPO\s*DE\s*SEGURO|\s*SEXO|\s*PLAN)/i);
+    // El PDF tiene: "Nombre y Apellidos Paciente" en una línea, "BORJA VILLANUEVA NELLY NEYME" en otra
+    const matchNombres = textoLimpio.match(/NOMBRE\s*Y\s*APELLIDOS\s*PACIENTE\s*([A-Z\s]{10,60}?)(?=\s*NRO|\s*DOCUMENTO|\s*TIPO|\s*HISTORIA|$)/i);
     if (matchNombres) {
         datos.nombres = matchNombres[1].trim().replace(/\s+/g, ' ');
     } else {
-        // Fallback: buscar línea con muchas mayúsculas después de "PACIENTE"
-        const matchNombres2 = textoLimpio.match(/PACIENTE\s*([A-Z\s]{10,60}?)(?=\s*NRO|\s*DOCUMENTO|\s*TIPO)/i);
-        if (matchNombres2) datos.nombres = matchNombres2[1].trim().replace(/\s+/g, ' ');
+        // Buscar línea con "PACIENTE" y tomar la siguiente línea como nombre
+        for (let i = 0; i < lineas.length; i++) {
+            const lineaUpper = lineas[i].toUpperCase();
+            if (/NOMBRE\s*Y\s*APELLIDOS\s*PACIENTE|NOMBRE\s*Y\s*APELLIDOS|PACIENTE/i.test(lineaUpper)) {
+                if (i + 1 < lineas.length) {
+                    const nombreLinea = lineas[i + 1].toUpperCase();
+                    // Validar que sea un nombre (muchos caracteres alfabéticos, no números)
+                    if (/^[A-Z\s]{10,60}$/.test(nombreLinea) && !/\d/.test(nombreLinea)) {
+                        datos.nombres = nombreLinea.trim().replace(/\s+/g, ' ');
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     // === EXAMEN SOLICITADO ===
-    // Buscamos líneas que empiecen con "EXAMEN RADIOLOGICO" o "RADIOLOGIA DIAGNOSTICA"
-    const matchExamen = textoLimpio.match(/EXAMEN\s*RADIOLOGICO\s*DE\s*([^\n]{10,200}?)(?=\d{5}|\s*INDICACIONES|\s*INDICACIONE|\s*AREA|\s*RADIOLOGIA\s*DIAGNOSTICA|$)/i) ||
-                        textoLimpio.match(/RADIOLOGIA\s*DIAGNOSTICA\s*EXAMEN\s*RADIOLOGICO\s*DE\s*([^\n]{10,200}?)(?=\d{5}|\s*INDICACIONES|\s*INDICACIONE|\s*AREA|$)/i);
+    const matchExamen = textoLimpio.match(/EXAMEN\s*RADIOLOGICO\s*DE\s*([^
+]{10,200}?)(?=\d{5}|\s*INDICACIONES|\s*INDICACIONE|\s*AREA|\s*RADIOLOGIA\s*DIAGNOSTICA|$)/i);
     if (matchExamen) {
         datos.examen = 'EXAMEN RADIOLOGICO DE ' + matchExamen[1].trim().replace(/\s+/g, ' ');
     } else {
-        // Fallback: buscar cualquier línea larga con "EXAMEN"
-        const matchExamen2 = textoLimpio.match(/(EXAMEN\s*RADIOLOGICO[^\n]{10,200})/i);
+        const matchExamen2 = textoLimpio.match(/(EXAMEN\s*RADIOLOGICO[^
+]{10,200})/i);
         if (matchExamen2) datos.examen = matchExamen2[1].trim().replace(/\s+/g, ' ');
     }
 
     // === NRO DE HISTORIA CLÍNICA ===
-    const matchHistoria = textoLimpio.match(/NRO\s*DE\s*HISTORIA\s*CLINICA\s*(\d{5,10})/i) ||
-                          textoLimpio.match(/HISTORIA\s*CLINICA\s*(\d{5,10})/i);
-    if (matchHistoria) datos.numeroHistoria = matchHistoria[1];
+    // El PDF tiene: "Nro de Historia Clinica" en una línea, "1166855" en otra
+    const matchHistoria = textoLimpio.match(/NRO\s*DE\s*HISTORIA\s*CLINICA\s*(\d{5,10})/i);
+    if (matchHistoria) {
+        datos.numeroHistoria = matchHistoria[1];
+    } else {
+        // Buscar línea con "HISTORIA CLINICA" y tomar la siguiente
+        for (let i = 0; i < lineas.length; i++) {
+            const lineaUpper = lineas[i].toUpperCase();
+            if (/HISTORIA\s*CLINICA|NRO\s*DE\s*HISTORIA/i.test(lineaUpper)) {
+                const matchEnLinea = lineas[i].match(/(\d{5,10})/);
+                if (matchEnLinea) { datos.numeroHistoria = matchEnLinea[1]; break; }
+                if (i + 1 < lineas.length) {
+                    const matchSiguiente = lineas[i + 1].match(/^(\d{5,10})$/);
+                    if (matchSiguiente) { datos.numeroHistoria = matchSiguiente[1]; break; }
+                }
+            }
+        }
+    }
 
     // === AUTOGENERADO ===
     const matchAutogenerado = textoLimpio.match(/AUTOGENERADO\s*([A-Z0-9]{10,20})/i);
@@ -191,28 +227,22 @@ function parsearDatosESSALUD(texto) {
 
 /**
  * Función principal: Procesa un archivo PDF y extrae datos
- * @param {File} file - Archivo PDF
- * @param {Object} callbacks - { onProgress, onComplete, onError }
  */
 async function procesarPDF(file, callbacks = {}) {
     const { onProgress, onComplete, onError } = callbacks;
 
     try {
-        // Paso 1: PDF → Canvas
         if (onProgress) onProgress(5, 'Convirtiendo PDF a imagen...');
         let canvas = await pdfToCanvas(file);
 
-        // Paso 2: Preprocesamiento
         if (onProgress) onProgress(15, 'Preprocesando imagen...');
         canvas = preprocesarImagen(canvas);
 
-        // Paso 3: OCR
         if (onProgress) onProgress(25, 'Iniciando reconocimiento OCR...');
         const resultadoOCR = await ejecutarOCR(canvas, (pct) => {
             if (onProgress) onProgress(25 + Math.round(pct * 0.6), 'Leyendo documento... ' + pct + '%');
         });
 
-        // Paso 4: Parsear datos
         if (onProgress) onProgress(90, 'Extrayendo datos...');
         const datos = parsearDatosESSALUD(resultadoOCR.text);
 
@@ -223,7 +253,7 @@ async function procesarPDF(file, callbacks = {}) {
                 datos,
                 textoCrudo: resultadoOCR.text,
                 confianza: resultadoOCR.confidence,
-                canvas: canvas // Para mostrar preview
+                canvas: canvas
             });
         }
 
