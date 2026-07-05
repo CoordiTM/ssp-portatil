@@ -65,7 +65,7 @@ function parsearDatosESSALUD(texto) {
 ').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
     const textoUpper = textoNormalizado.toUpperCase();
 
-    // === NRO. DE SOLICITUD ===
+    // NRO. DE SOLICITUD
     const matchSolicitud = textoUpper.match(/NRO\.?\s*DE?\s*SOLICITUD\s*(\d{6,10})/);
     if (matchSolicitud) {
         datos.numeroSolicitud = matchSolicitud[1];
@@ -78,7 +78,7 @@ function parsearDatosESSALUD(texto) {
         }
     }
 
-    // === DNI ===
+    // DNI
     const matchDNI = textoUpper.match(/D\.?N\.?I\.?\s*(\d{8})/);
     if (matchDNI) {
         datos.dni = matchDNI[1];
@@ -96,7 +96,7 @@ function parsearDatosESSALUD(texto) {
         }
     }
 
-    // === NOMBRES Y APELLIDOS ===
+    // NOMBRES Y APELLIDOS
     const matchNombres = textoUpper.match(/NOMBRE\s*Y\s*APELLIDOS\s*PACIENTE\s*([A-Z\s]{10,60}?)(?=\s*NRO|\s*DOCUMENTO|\s*TIPO|\s*HISTORIA|$)/);
     if (matchNombres) {
         datos.nombres = matchNombres[1].trim().replace(/\s+/g, ' ');
@@ -115,7 +115,7 @@ function parsearDatosESSALUD(texto) {
         }
     }
 
-    // === EXAMEN SOLICITADO ===
+    // EXAMEN SOLICITADO
     const matchExamen = textoUpper.match(/EXAMEN\s*RADIOLOGICO\s*DE\s*([^
 ]{10,200}?)(?=\d{5}|\s*INDICACIONES|\s*INDICACIONE|\s*AREA|\s*RADIOLOGIA\s*DIAGNOSTICA|$)/);
     if (matchExamen) {
@@ -126,7 +126,7 @@ function parsearDatosESSALUD(texto) {
         if (matchExamen2) datos.examen = matchExamen2[1].trim().replace(/\s+/g, ' ');
     }
 
-    // === NRO DE HISTORIA CLINICA ===
+    // NRO DE HISTORIA CLINICA
     const matchHistoria = textoUpper.match(/NRO\s*DE\s*HISTORIA\s*CLINICA\s*(\d{5,10})/);
     if (matchHistoria) {
         datos.numeroHistoria = matchHistoria[1];
