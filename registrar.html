@@ -6,7 +6,7 @@
     <title>Registrar Solicitud - HNASS</title>
     <link rel="stylesheet" href="styles.css">
     <style>
-        /* ===== ESTILOS OCR ADICIONALES (agregar a styles.css si prefieres) ===== */
+        /* ===== ESTILOS OCR ADICIONALES ===== */
         .ocr-nota {
             background: #fff8e1;
             border: 2px solid #ffc107;
@@ -159,7 +159,6 @@
         }
         .ocr-texto-crudo pre { color: #aed581; font-family: monospace; font-size: 11px; margin: 0; white-space: pre-wrap; word-break: break-word; }
 
-        /* Campos autollenados */
         input.ocr-filled, textarea.ocr-filled, select.ocr-filled {
             background: #fffde7 !important;
             border-color: #ffe082 !important;
@@ -265,7 +264,7 @@
             <h2>✏️ Paso 2: Confirmar y Completar Datos</h2>
             <form id="formSolicitud">
 
-                <!-- Campos extraídos por OCR (5 campos) -->
+                <!-- Campos extraídos por OCR (4 campos - sin Examen) -->
                 <div style="background: #f8f9fa; border-radius: 10px; padding: 16px; margin-bottom: 20px;">
                     <h3 style="font-size: 14px; color: #424242; margin-bottom: 12px;">📋 Datos extraídos del PDF</h3>
 
@@ -288,11 +287,6 @@
                         <label>Apellidos y Nombres: *</label>
                         <input type="text" id="nombrePaciente" placeholder="Nombre completo" required disabled>
                         <span class="field-hint" id="hintNombre">Esperando PDF...</span>
-                    </div>
-                    <div class="form-group">
-                        <label>Examen Solicitado:</label>
-                        <textarea id="examenSolicitado" rows="2" placeholder="Extraído del PDF" disabled></textarea>
-                        <span class="field-hint" id="hintExamen">Esperando PDF...</span>
                     </div>
                 </div>
 
@@ -387,18 +381,17 @@
             const ocrTextoCrudo = document.getElementById('ocrTextoCrudo');
             const ocrTextoContent = document.getElementById('ocrTextoContent');
 
+            // 4 campos OCR (sin examen)
             const solicitudInput = document.getElementById('numeroSolicitud');
             const historiaInput = document.getElementById('numeroHistoria');
             const dniInput = document.getElementById('dniPaciente');
             const nombreInput = document.getElementById('nombrePaciente');
-            const examenInput = document.getElementById('examenSolicitado');
             const btnRegistrar = document.getElementById('btnRegistrar');
 
             const hintSolicitud = document.getElementById('hintSolicitud');
             const hintHistoria = document.getElementById('hintHistoria');
             const hintDNI = document.getElementById('hintDNI');
             const hintNombre = document.getElementById('hintNombre');
-            const hintExamen = document.getElementById('hintExamen');
 
             let archivoPDF = null;
 
@@ -447,7 +440,6 @@
                 resetField(historiaInput, hintHistoria);
                 resetField(dniInput, hintDNI);
                 resetField(nombreInput, hintNombre);
-                resetField(examenInput, hintExamen);
 
                 btnRegistrar.disabled = true;
             }
@@ -461,16 +453,16 @@
                 const confianzaColor = confianza >= 80 ? 'alta' : confianza >= 60 ? 'media' : 'baja';
                 ocrConfianza.innerHTML = '<span class="confianza-' + confianzaColor + '">Confianza: ' + Math.round(confianza) + '%</span>';
 
+                // 4 campos en el preview (sin examen)
                 const camposMostrar = [
                     { key: 'numeroSolicitud', label: 'Nro. Solicitud', icon: '📋' },
                     { key: 'numeroHistoria', label: 'Historia Clínica', icon: '📁' },
                     { key: 'dni', label: 'DNI', icon: '🆔' },
-                    { key: 'nombres', label: 'Apellidos y Nombres', icon: '👤' },
-                    { key: 'examen', label: 'Examen Solicitado', icon: '🔬' }
+                    { key: 'nombres', label: 'Apellidos y Nombres', icon: '👤' }
                 ];
 
                 let htmlDatos = '';
-                camposMostrar.forEach(campo => {
+                camposMostrar.forEach(function(campo) {
                     const valor = datos[campo.key];
                     const estado = valor ? 'ok' : 'missing';
                     const texto = valor || 'No detectado';
@@ -479,12 +471,11 @@
                 ocrDatosGrid.innerHTML = htmlDatos;
                 ocrTextoContent.textContent = textoCrudo;
 
-                // Llenar formulario
+                // Llenar formulario (4 campos)
                 setField(solicitudInput, datos.numeroSolicitud, hintSolicitud);
                 setField(historiaInput, datos.numeroHistoria, hintHistoria);
                 setField(dniInput, datos.dni, hintDNI);
                 setField(nombreInput, datos.nombres, hintNombre);
-                setField(examenInput, datos.examen, hintExamen);
 
                 btnRegistrar.disabled = false;
                 document.getElementById('cardFormulario').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -497,7 +488,7 @@
             }
 
             function habilitarManual() {
-                [solicitudInput, historiaInput, dniInput, nombreInput, examenInput].forEach(input => {
+                [solicitudInput, historiaInput, dniInput, nombreInput].forEach(function(input) {
                     input.disabled = false;
                     input.classList.remove('ocr-filled');
                 });
@@ -505,7 +496,6 @@
                 setHint(hintHistoria, 'Ingrese manualmente', 'manual');
                 setHint(hintDNI, 'Ingrese manualmente', 'manual');
                 setHint(hintNombre, 'Ingrese manualmente', 'manual');
-                setHint(hintExamen, 'Ingrese manualmente', 'manual');
                 btnRegistrar.disabled = false;
                 document.getElementById('cardFormulario').scrollIntoView({ behavior: 'smooth' });
             }
@@ -516,7 +506,7 @@
                 ocrError.style.display = 'none';
 
                 procesarPDF(file, {
-                    onProgress: (pct, mensaje) => {
+                    onProgress: function(pct, mensaje) {
                         ocrProgressText.textContent = mensaje;
                         ocrProgressPercent.textContent = pct + '%';
                         ocrProgressFill.style.width = pct + '%';
@@ -537,14 +527,14 @@
             }
 
             // Eventos
-            uploadArea.addEventListener('click', (e) => {
+            uploadArea.addEventListener('click', function(e) {
                 if (e.target.closest('#btnEliminarPDF')) return;
                 archivoInput.click();
             });
 
-            uploadArea.addEventListener('dragover', (e) => { e.preventDefault(); uploadArea.classList.add('dragover'); });
-            uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
-            uploadArea.addEventListener('drop', (e) => {
+            uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('dragover'); });
+            uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('dragover'); });
+            uploadArea.addEventListener('drop', function(e) {
                 e.preventDefault();
                 uploadArea.classList.remove('dragover');
                 const files = e.dataTransfer.files;
@@ -556,13 +546,13 @@
                 }
             });
 
-            archivoInput.addEventListener('change', () => {
+            archivoInput.addEventListener('change', function() {
                 if (archivoInput.files.length > 0) manejarArchivo(archivoInput.files[0]);
             });
 
-            btnEliminarPDF.addEventListener('click', (e) => { e.stopPropagation(); resetearTodo(); });
-            btnOCRManual.addEventListener('click', () => { habilitarManual(); ocrError.style.display = 'none'; });
-            btnVerTexto.addEventListener('click', () => {
+            btnEliminarPDF.addEventListener('click', function(e) { e.stopPropagation(); resetearTodo(); });
+            btnOCRManual.addEventListener('click', function() { habilitarManual(); ocrError.style.display = 'none'; });
+            btnVerTexto.addEventListener('click', function() {
                 const visible = ocrTextoCrudo.style.display !== 'none';
                 ocrTextoCrudo.style.display = visible ? 'none' : 'block';
                 btnVerTexto.textContent = visible ? '👁️ Ver texto OCR completo' : '👁️ Ocultar texto OCR';
