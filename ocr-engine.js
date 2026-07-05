@@ -59,11 +59,11 @@ function parsearDatosESSALUD(texto) {
         examen: null,
         numeroHistoria: null
     };
-
-    const textoNormalizado = texto.replace(/[ 	]+/g, ' ').trim();
+    
+    const textoNormalizado = texto.replace(/[ \t]+/g, ' ').trim();
     const lineas = textoNormalizado.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
     const textoUpper = textoNormalizado.toUpperCase();
-
+    
     // NRO. DE SOLICITUD
     const matchSolicitud = textoUpper.match(/NRO\.?\s*DE?\s*SOLICITUD\s*(\d{6,10})/);
     if (matchSolicitud) {
@@ -76,7 +76,7 @@ function parsearDatosESSALUD(texto) {
             }
         }
     }
-
+    
     // DNI
     const matchDNI = textoUpper.match(/D\.?N\.?I\.?\s*(\d{8})/);
     if (matchDNI) {
@@ -94,7 +94,7 @@ function parsearDatosESSALUD(texto) {
             }
         }
     }
-
+    
     // NOMBRES Y APELLIDOS
     const matchNombres = textoUpper.match(/NOMBRE\s*Y\s*APELLIDOS\s*PACIENTE\s*([A-Z\s]{10,60}?)(?=\s*NRO|\s*DOCUMENTO|\s*TIPO|\s*HISTORIA|$)/);
     if (matchNombres) {
@@ -113,18 +113,16 @@ function parsearDatosESSALUD(texto) {
             }
         }
     }
-
+    
     // EXAMEN SOLICITADO
-    const matchExamen = textoUpper.match(/EXAMEN\s*RADIOLOGICO\s*DE\s*([^\n]
-{10,200}?)(?=\d{5}|\s*INDICACIONES|\s*INDICACIONE|\s*AREA|\s*RADIOLOGIA\s*DIAGNOSTICA|$)/);
+    const matchExamen = textoUpper.match(/EXAMEN\s*RADIOLOGICO\s*DE\s*([^\n]{10,200}?)(?=\d{5}|\s*INDICACIONES|\s*INDICACIONE|\s*AREA|\s*RADIOLOGIA\s*DIAGNOSTICA|$)/);
     if (matchExamen) {
         datos.examen = 'EXAMEN RADIOLOGICO DE ' + matchExamen[1].trim().replace(/\s+/g, ' ');
     } else {
-        const matchExamen2 = textoUpper.match(/(EXAMEN\s*RADIOLOGICO[^
-]{10,200})/);
+        const matchExamen2 = textoUpper.match(/(EXAMEN\s*RADIOLOGICO[^\n]{10,200})/);
         if (matchExamen2) datos.examen = matchExamen2[1].trim().replace(/\s+/g, ' ');
     }
-
+    
     // NRO DE HISTORIA CLINICA
     const matchHistoria = textoUpper.match(/NRO\s*DE\s*HISTORIA\s*CLINICA\s*(\d{5,10})/);
     if (matchHistoria) {
@@ -142,7 +140,7 @@ function parsearDatosESSALUD(texto) {
             }
         }
     }
-
+    
     return datos;
 }
 
@@ -151,24 +149,24 @@ async function procesarPDF(file, callbacks) {
     const onProgress = callbacks.onProgress;
     const onComplete = callbacks.onComplete;
     const onError = callbacks.onError;
-
+    
     try {
         if (onProgress) onProgress(5, 'Convirtiendo PDF a imagen...');
         let canvas = await pdfToCanvas(file);
-
+        
         if (onProgress) onProgress(15, 'Preprocesando imagen...');
         canvas = preprocesarImagen(canvas);
-
+        
         if (onProgress) onProgress(25, 'Iniciando reconocimiento OCR...');
         const resultadoOCR = await ejecutarOCR(canvas, function(pct) {
             if (onProgress) onProgress(25 + Math.round(pct * 0.6), 'Leyendo documento... ' + pct + '%');
         });
-
+        
         if (onProgress) onProgress(90, 'Extrayendo datos...');
         const datos = parsearDatosESSALUD(resultadoOCR.text);
-
+        
         if (onProgress) onProgress(100, 'Datos extraidos!');
-
+        
         if (onComplete) {
             onComplete({
                 datos: datos,
@@ -177,9 +175,9 @@ async function procesarPDF(file, callbacks) {
                 canvas: canvas
             });
         }
-
+        
         return { datos: datos, textoCrudo: resultadoOCR.text, confianza: resultadoOCR.confidence, canvas: canvas };
-
+        
     } catch (error) {
         console.error('Error en OCR:', error);
         if (onError) onError(error.message);
