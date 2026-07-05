@@ -1059,7 +1059,8 @@ if (formSolicitud) {
         e.preventDefault();
         const btn = formSolicitud.querySelector('button[type="submit"]');
         btn.disabled = true;
-        btn.textContent = '⏳ Subiendo...';
+        btn.textContent = '⏳ Registrando...';
+
         try {
             const file = document.getElementById('archivoSolicitud').files[0];
             if (!file) {
@@ -1068,6 +1069,7 @@ if (formSolicitud) {
                 btn.textContent = '➕ Registrar Solicitud';
                 return;
             }
+
             const esPDF = file.type === 'application/pdf';
             if (!esPDF) {
                 alert('❌ Solo se permiten archivos PDF');
@@ -1075,7 +1077,9 @@ if (formSolicitud) {
                 btn.textContent = '➕ Registrar Solicitud';
                 return;
             }
+
             const archivoUrl = await subirArchivoCloudinary(file);
+
             const dni = document.getElementById('dniPaciente').value.trim();
             if (!dni || dni.length !== 8) {
                 alert('❌ El DNI debe tener 8 dígitos');
@@ -1083,6 +1087,7 @@ if (formSolicitud) {
                 btn.textContent = '➕ Registrar Solicitud';
                 return;
             }
+
             const nombrePaciente = document.getElementById('nombrePaciente').value.trim();
             if (!nombrePaciente) {
                 alert('❌ El nombre del paciente es obligatorio');
@@ -1090,6 +1095,7 @@ if (formSolicitud) {
                 btn.textContent = '➕ Registrar Solicitud';
                 return;
             }
+
             const servicio = document.getElementById('servicio').value;
             if (!servicio) {
                 alert('❌ Debe seleccionar un servicio');
@@ -1097,6 +1103,7 @@ if (formSolicitud) {
                 btn.textContent = '➕ Registrar Solicitud';
                 return;
             }
+
             const esProgramado = document.getElementById('esProgramado').value === 'si';
             const horaProgramadaInput = document.getElementById('horaProgramada').value;
             let horaProgramadaTimestamp = null;
@@ -1104,10 +1111,11 @@ if (formSolicitud) {
                 const fechaProgramada = new Date(horaProgramadaInput);
                 horaProgramadaTimestamp = Timestamp.fromDate(fechaProgramada);
             }
-            // Datos extraídos por OCR (5 campos)
+
+            // Datos extraídos por OCR (4 campos - sin examen)
             const numeroSolicitud = document.getElementById('numeroSolicitud').value.trim() || null;
             const numeroHistoria = document.getElementById('numeroHistoria').value.trim() || null;
-            const examenSolicitado = document.getElementById('examenSolicitado').value.trim() || null;
+
             await addDoc(collection(db, 'solicitudes'), {
                 dniPaciente: dni,
                 nombrePaciente: nombrePaciente,
@@ -1119,11 +1127,10 @@ if (formSolicitud) {
                 estado: 'pendiente',
                 esProgramado: esProgramado,
                 horaProgramada: horaProgramadaTimestamp,
-                // Datos OCR extraídos (5 campos clave)
+                // Datos OCR extraídos (4 campos - sin examen)
                 ocrData: {
                     numeroSolicitud: numeroSolicitud,
                     numeroHistoria: numeroHistoria,
-                    examenSolicitado: examenSolicitado,
                     extraidoAutomaticamente: true,
                     fechaExtraccion: new Date().toISOString()
                 },
@@ -1137,8 +1144,10 @@ if (formSolicitud) {
                 motivoRechazo: null,
                 historialNotas: []
             });
+
             formSolicitud.reset();
             document.getElementById('grupoHoraProgramada').style.display = 'none';
+
             // Resetear estado OCR
             document.getElementById('uploadPlaceholder').style.display = 'block';
             document.getElementById('uploadPreview').style.display = 'none';
@@ -1149,12 +1158,10 @@ if (formSolicitud) {
             document.getElementById('numeroHistoria').value = '';
             document.getElementById('dniPaciente').value = '';
             document.getElementById('nombrePaciente').value = '';
-            document.getElementById('examenSolicitado').value = '';
             document.getElementById('numeroSolicitud').disabled = true;
             document.getElementById('numeroHistoria').disabled = true;
             document.getElementById('dniPaciente').disabled = true;
             document.getElementById('nombrePaciente').disabled = true;
-            document.getElementById('examenSolicitado').disabled = true;
             document.getElementById('btnRegistrar').disabled = true;
             document.getElementById('hintSolicitud').textContent = 'Esperando PDF...';
             document.getElementById('hintSolicitud').className = 'field-hint';
@@ -1164,10 +1171,10 @@ if (formSolicitud) {
             document.getElementById('hintDNI').className = 'field-hint';
             document.getElementById('hintNombre').textContent = 'Esperando PDF...';
             document.getElementById('hintNombre').className = 'field-hint';
-            document.getElementById('hintExamen').textContent = 'Esperando PDF...';
-            document.getElementById('hintExamen').className = 'field-hint';
+
             hablar('Tu solicitud ha sido registrada con exito');
             alert('✅ Solicitud registrada correctamente. DNI: ' + dni);
+
         } catch (error) {
             console.error(error);
             alert('❌ Error: ' + error.message);
