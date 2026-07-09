@@ -194,12 +194,12 @@
             <div class="ocr-nota">
                 <div class="ocr-nota-icono">💡</div>
                 <div class="ocr-nota-contenido">
-                    <strong>Primero suba el PDF y el sistema extraerá los datos</strong>
+                    <strong>Suba el PDF o ingrese los datos manualmente</strong>
                     <ol>
-                        <li>Suba el <strong>PDF de la Solicitud de Examen Auxiliar</strong> del sistema HNASS.</li>
-                        <li>El sistema <strong>extraerá automáticamente</strong> los datos del paciente.</li>
-                        <li><strong>Verifique y corrija</strong> los datos extraídos.</li>
-                        <li>Complete los campos restantes y registre el pedido.</li>
+                        <li>Suba el <strong>PDF de la Solicitud de Examen Auxiliar</strong> para extracción automática (opcional).</li>
+                        <li>Si el OCR <strong>no extrae los datos</strong>, puede completarlos manualmente.</li>
+                        <li><strong>Verifique</strong> los datos antes de registrar.</li>
+                        <li>El tecnólogo médico tiene el <strong>PDF de respaldo</strong> para verificar datos.</li>
                     </ol>
                 </div>
             </div>
@@ -270,23 +270,23 @@
 
                     <div class="form-group">
                         <label>Nro. de Solicitud:</label>
-                        <input type="text" id="numeroSolicitud" placeholder="Extraído del PDF" disabled>
-                        <span class="field-hint" id="hintSolicitud">Esperando PDF...</span>
+                        <input type="text" id="numeroSolicitud" placeholder="Extraído del PDF o ingrese manualmente">
+                        <span class="field-hint" id="hintSolicitud">Ingrese manualmente o espere extracción OCR</span>
                     </div>
                     <div class="form-group">
                         <label>Nro. de Historia Clínica:</label>
-                        <input type="text" id="numeroHistoria" placeholder="Extraído del PDF" disabled>
-                        <span class="field-hint" id="hintHistoria">Esperando PDF...</span>
+                        <input type="text" id="numeroHistoria" placeholder="Extraído del PDF o ingrese manualmente">
+                        <span class="field-hint" id="hintHistoria">Ingrese manualmente o espere extracción OCR</span>
                     </div>
                     <div class="form-group">
-                        <label>DNI del paciente: *</label>
-                        <input type="text" id="dniPaciente" placeholder="Ej: 12345678" maxlength="8" required disabled>
-                        <span class="field-hint" id="hintDNI">Esperando PDF...</span>
+                        <label>DNI del paciente:</label>
+                        <input type="text" id="dniPaciente" placeholder="Ej: 12345678" maxlength="8">
+                        <span class="field-hint" id="hintDNI">Ingrese manualmente o espere extracción OCR</span>
                     </div>
                     <div class="form-group">
-                        <label>Apellidos y Nombres: *</label>
-                        <input type="text" id="nombrePaciente" placeholder="Nombre completo" required disabled>
-                        <span class="field-hint" id="hintNombre">Esperando PDF...</span>
+                        <label>Apellidos y Nombres:</label>
+                        <input type="text" id="nombrePaciente" placeholder="Nombre completo">
+                        <span class="field-hint" id="hintNombre">Ingrese manualmente o espere extracción OCR</span>
                     </div>
                 </div>
 
@@ -322,7 +322,7 @@
                     <small>📅 Selecciona fecha y hora exacta del estudio programado</small>
                 </div>
 
-                <button type="submit" class="btn-primary" id="btnRegistrar" disabled>➕ Registrar Solicitud</button>
+                <button type="submit" class="btn-primary" id="btnRegistrar">➕ Registrar Solicitud</button>
             </form>
         </section>
 
@@ -403,7 +403,6 @@
             function setField(input, valor, hintEl) {
                 if (valor) {
                     input.value = valor;
-                    input.disabled = false;
                     input.classList.add('ocr-filled');
                     setHint(hintEl, '✅ Extraído del PDF - Verifique', 'ok');
                 }
@@ -411,9 +410,8 @@
 
             function resetField(input, hintEl) {
                 input.value = '';
-                input.disabled = true;
                 input.classList.remove('ocr-filled');
-                setHint(hintEl, 'Esperando PDF...', '');
+                setHint(hintEl, 'Ingrese manualmente o espere extracción OCR', '');
             }
 
             function formatearBytes(bytes) {
@@ -440,8 +438,6 @@
                 resetField(historiaInput, hintHistoria);
                 resetField(dniInput, hintDNI);
                 resetField(nombreInput, hintNombre);
-
-                btnRegistrar.disabled = true;
             }
 
             function mostrarResultadoOCR(resultado) {
@@ -477,7 +473,6 @@
                 setField(dniInput, datos.dni, hintDNI);
                 setField(nombreInput, datos.nombres, hintNombre);
 
-                btnRegistrar.disabled = false;
                 document.getElementById('cardFormulario').scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
@@ -489,14 +484,12 @@
 
             function habilitarManual() {
                 [solicitudInput, historiaInput, dniInput, nombreInput].forEach(function(input) {
-                    input.disabled = false;
                     input.classList.remove('ocr-filled');
                 });
                 setHint(hintSolicitud, 'Ingrese manualmente', 'manual');
                 setHint(hintHistoria, 'Ingrese manualmente', 'manual');
                 setHint(hintDNI, 'Ingrese manualmente', 'manual');
                 setHint(hintNombre, 'Ingrese manualmente', 'manual');
-                btnRegistrar.disabled = false;
                 document.getElementById('cardFormulario').scrollIntoView({ behavior: 'smooth' });
             }
 
