@@ -1082,16 +1082,13 @@ if (formSolicitud) {
             const archivoUrl = await subirArchivoCloudinary(file);
 
             const dni = document.getElementById('dniPaciente').value.trim();
-            if (!dni || dni.length !== 8) {
-                alert('❌ El DNI debe tener 8 dígitos');
-                btn.disabled = false;
-                btn.textContent = '➕ Registrar Solicitud';
-                return;
-            }
-
             const nombrePaciente = document.getElementById('nombrePaciente').value.trim();
-            if (!nombrePaciente) {
-                alert('❌ El nombre del paciente es obligatorio');
+
+            // Los campos DNI y nombre NO son obligatorios.
+            // Si el OCR falla, el médico puede dejarlos vacíos y completar manualmente después.
+            // El tecnólogo tiene el PDF de respaldo para verificar los datos.
+            if (dni && dni.length !== 8) {
+                alert('❌ El DNI debe tener 8 dígitos');
                 btn.disabled = false;
                 btn.textContent = '➕ Registrar Solicitud';
                 return;
@@ -1118,8 +1115,8 @@ if (formSolicitud) {
             const numeroHistoria = document.getElementById('numeroHistoria').value.trim() || null;
 
             await addDoc(collection(db, 'solicitudes'), {
-                dniPaciente: dni,
-                nombrePaciente: nombrePaciente,
+                dniPaciente: dni || '',
+                nombrePaciente: nombrePaciente || '',
                 servicio: servicio,
                 numeroCama: document.getElementById('numeroCama').value.trim() || '',
                 solicitadoPor: document.getElementById('solicitadoPor').value.trim() || '',
@@ -1159,18 +1156,20 @@ if (formSolicitud) {
             document.getElementById('numeroHistoria').value = '';
             document.getElementById('dniPaciente').value = '';
             document.getElementById('nombrePaciente').value = '';
-            document.getElementById('numeroSolicitud').disabled = true;
-            document.getElementById('numeroHistoria').disabled = true;
-            document.getElementById('dniPaciente').disabled = true;
-            document.getElementById('nombrePaciente').disabled = true;
-            document.getElementById('btnRegistrar').disabled = true;
-            document.getElementById('hintSolicitud').textContent = 'Esperando PDF...';
+            // Los campos permanecen habilitados para edición manual
+            // El médico puede corregir o completar datos si el OCR falla
+            document.getElementById('numeroSolicitud').disabled = false;
+            document.getElementById('numeroHistoria').disabled = false;
+            document.getElementById('dniPaciente').disabled = false;
+            document.getElementById('nombrePaciente').disabled = false;
+            document.getElementById('btnRegistrar').disabled = false;
+            document.getElementById('hintSolicitud').textContent = 'Extraído por OCR o ingrese manualmente';
             document.getElementById('hintSolicitud').className = 'field-hint';
-            document.getElementById('hintHistoria').textContent = 'Esperando PDF...';
+            document.getElementById('hintHistoria').textContent = 'Extraído por OCR o ingrese manualmente';
             document.getElementById('hintHistoria').className = 'field-hint';
-            document.getElementById('hintDNI').textContent = 'Esperando PDF...';
+            document.getElementById('hintDNI').textContent = 'Extraído por OCR o ingrese manualmente';
             document.getElementById('hintDNI').className = 'field-hint';
-            document.getElementById('hintNombre').textContent = 'Esperando PDF...';
+            document.getElementById('hintNombre').textContent = 'Extraído por OCR o ingrese manualmente';
             document.getElementById('hintNombre').className = 'field-hint';
 
             hablar('Tu solicitud ha sido registrada con exito');
@@ -1519,10 +1518,16 @@ function crearCardSolicitud(sol) {
     }
     
     // === NUEVO: CSS class para programados pendientes ===
+    // Badge de advertencia si faltan datos OCR
+    let datosIncompletosBadge = '';
+    if (!data.dniPaciente || !data.nombrePaciente || !data.ocrData?.numeroSolicitud) {
+        datosIncompletosBadge = '<span style="background:#fff3e0;color:#e65100;padding:2px 10px;border-radius:12px;font-size:10px;margin-left:8px;">⚠️ Datos OCR incompletos</span>';
+    }
+
     let cardClass = 'solicitud-card-v2 ' + alerta;
     if (esProgramadoPendiente) cardClass += ' programado-pendiente-card';
     
-    return '<div class="' + cardClass + '" id="card-' + id + '"><div class="card-header"><div class="card-titulo"><strong>' + (data.nombrePaciente || '-') + '</strong><span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>' + indicadorProgramado + '</div>' + estadoBadge + '</div><div class="card-info"><div class="info-row"><span>🕐 ' + fechaHora + '</span><span class="tiempo">⏱️ ' + tiempo + '</span></div>' + servicioHTML + '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>' + (data.notas ? '<div class="info-row notas">📝 ' + data.notas + '</div>' : '') + '</div>' + archivoHTML + '<div class="card-actions">' + acciones + historialNotasHTML + adminBotones + '</div></div>';
+    return '<div class="' + cardClass + '" id="card-' + id + '"><div class="card-header"><div class="card-titulo"><strong>' + (data.nombrePaciente || '-') + '</strong><span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>' + indicadorProgramado + datosIncompletosBadge + '</div>' + estadoBadge + '</div><div class="card-info"><div class="info-row"><span>🕐 ' + fechaHora + '</span><span class="tiempo">⏱️ ' + tiempo + '</span></div>' + servicioHTML + '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>' + (data.notas ? '<div class="info-row notas">📝 ' + data.notas + '</div>' : '') + '</div>' + archivoHTML + '<div class="card-actions">' + acciones + historialNotasHTML + adminBotones + '</div></div>';
 }
 
 let unsubscribe = null;
