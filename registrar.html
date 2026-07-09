@@ -479,7 +479,22 @@
             function mostrarErrorOCR(mensaje) {
                 ocrProgress.style.display = 'none';
                 ocrError.style.display = 'flex';
-                ocrErrorMsg.textContent = mensaje;
+                ocrErrorMsg.textContent = mensaje + ' Puede ingresar los datos manualmente.';
+
+                // Habilitar todos los campos para edición manual cuando OCR falla
+                [solicitudInput, historiaInput, dniInput, nombreInput].forEach(function(input) {
+                    input.classList.remove('ocr-filled');
+                });
+                setHint(hintSolicitud, 'Ingrese manualmente', 'manual');
+                setHint(hintHistoria, 'Ingrese manualmente', 'manual');
+                setHint(hintDNI, 'Ingrese manualmente', 'manual');
+                setHint(hintNombre, 'Ingrese manualmente', 'manual');
+
+                // Asegurar que el botón de registrar esté habilitado
+                btnRegistrar.disabled = false;
+
+                // Scroll al formulario para que el usuario vea que puede continuar
+                document.getElementById('cardFormulario').scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
 
             function habilitarManual() {

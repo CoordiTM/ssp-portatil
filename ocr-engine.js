@@ -59,88 +59,166 @@ function parsearDatosESSALUD(texto) {
         examen: null,
         numeroHistoria: null
     };
-    
+
     const textoNormalizado = texto.replace(/[ \t]+/g, ' ').trim();
     const lineas = textoNormalizado.split('\n').map(function(l) { return l.trim(); }).filter(function(l) { return l.length > 0; });
     const textoUpper = textoNormalizado.toUpperCase();
-    
-    // NRO. DE SOLICITUD
-    const matchSolicitud = textoUpper.match(/NRO\.?\s*DE?\s*SOLICITUD\s*(\d{6,10})/);
-    if (matchSolicitud) {
-        datos.numeroSolicitud = matchSolicitud[1];
-    } else {
-        for (let i = 0; i < lineas.length; i++) {
-            if (/NRO\.?\s*DE?\s*SOLICITUD/i.test(lineas[i]) && i + 1 < lineas.length) {
-                const siguiente = lineas[i + 1].match(/^(\d{6,10})$/);
-                if (siguiente) { datos.numeroSolicitud = siguiente[1]; break; }
-            }
+
+    // ========== NRO. DE SOLICITUD - Múltiples patrones ==========
+    const patronesSolicitud = [
+        /NRO\.?\s*DE?\s*SOLICITUD\s*(\d{6,10})/i,
+        /NRO\.?\s*SOLICITUD\s*(\d{6,10})/i,
+        /SOLICITUD\s*(\d{6,10})/i,
+        /NRO\.\s*DE\s*SOLICITUD\s+(\d{6,10})/i,
+        /NRO\.DE\s*SOLICITUD\s*(\d{6,10})/i,
+    ];
+
+    for (const patron of patronesSolicitud) {
+        const match = textoNormalizado.match(patron);
+        if (match) {
+            datos.numeroSolicitud = match[1];
+            break;
         }
     }
-    
-    // DNI
-    const matchDNI = textoUpper.match(/D\.?N\.?I\.?\s*(\d{8})/);
-    if (matchDNI) {
-        datos.dni = matchDNI[1];
-    } else {
+
+    if (!datos.numeroSolicitud) {
         for (let i = 0; i < lineas.length; i++) {
             const lineaUpper = lineas[i].toUpperCase();
-            if (/D\.?N\.?I\.?|DOCUMENTO\s*DE\s*IDENTIDAD/i.test(lineaUpper)) {
-                const matchEnLinea = lineas[i].match(/(\d{8})/);
-                if (matchEnLinea) { datos.dni = matchEnLinea[1]; break; }
-                if (i + 1 < lineas.length) {
-                    const matchSiguiente = lineas[i + 1].match(/^(\d{8})$/);
-                    if (matchSiguiente) { datos.dni = matchSiguiente[1]; break; }
+            if (/NRO\.?\s*DE?\s*SOLICITUD|SOLICITUD/i.test(lineaUpper)) {
+                const matchEnLinea = lineas[i].match(/(\d{6,10})/);
+                if (matchEnLinea) { 
+                    datos.numeroSolicitud = matchEnLinea[1]; 
+                    break; 
                 }
-            }
-        }
-    }
-    
-    // NOMBRES Y APELLIDOS
-    const matchNombres = textoUpper.match(/NOMBRE\s*Y\s*APELLIDOS\s*PACIENTE\s*([A-Z\s]{10,60}?)(?=\s*NRO|\s*DOCUMENTO|\s*TIPO|\s*HISTORIA|$)/);
-    if (matchNombres) {
-        datos.nombres = matchNombres[1].trim().replace(/\s+/g, ' ');
-    } else {
-        for (let i = 0; i < lineas.length; i++) {
-            const lineaUpper = lineas[i].toUpperCase();
-            if (/NOMBRE\s*Y\s*APELLIDOS\s*PACIENTE|NOMBRE\s*Y\s*APELLIDOS|PACIENTE/i.test(lineaUpper)) {
                 if (i + 1 < lineas.length) {
-                    const nombreLinea = lineas[i + 1].toUpperCase();
-                    if (/^[A-Z\s]{10,60}$/.test(nombreLinea) && !/\d/.test(nombreLinea)) {
-                        datos.nombres = nombreLinea.trim().replace(/\s+/g, ' ');
-                        break;
+                    const matchSiguiente = lineas[i + 1].match(/^(\d{6,10})$/);
+                    if (matchSiguiente) { 
+                        datos.numeroSolicitud = matchSiguiente[1]; 
+                        break; 
                     }
                 }
             }
         }
     }
-    
-    // EXAMEN SOLICITADO
-    const matchExamen = textoUpper.match(/EXAMEN\s*RADIOLOGICO\s*DE\s*([^\n]{10,200}?)(?=\d{5}|\s*INDICACIONES|\s*INDICACIONE|\s*AREA|\s*RADIOLOGIA\s*DIAGNOSTICA|$)/);
-    if (matchExamen) {
-        datos.examen = 'EXAMEN RADIOLOGICO DE ' + matchExamen[1].trim().replace(/\s+/g, ' ');
-    } else {
-        const matchExamen2 = textoUpper.match(/(EXAMEN\s*RADIOLOGICO[^\n]{10,200})/);
-        if (matchExamen2) datos.examen = matchExamen2[1].trim().replace(/\s+/g, ' ');
+
+    // ========== DNI - Múltiples patrones ==========
+    const patronesDNI = [
+        /D\.?N\.?I\.?\s*(\d{8})/i,
+        /D\.?N\.?I\s+(\d{8})/i,
+        /DOCUMENTO\s*DE\s*IDENTIDAD\s*[D\.N\.I\.]*\s*(\d{8})/i,
+        /IDENTIDAD\s*(\d{8})/i,
+        /DNI\s*(\d{8})/i,
+    ];
+
+    for (const patron of patronesDNI) {
+        const match = textoNormalizado.match(patron);
+        if (match) {
+            datos.dni = match[1];
+            break;
+        }
     }
-    
-    // NRO DE HISTORIA CLINICA
-    const matchHistoria = textoUpper.match(/NRO\s*DE\s*HISTORIA\s*CLINICA\s*(\d{5,10})/);
-    if (matchHistoria) {
-        datos.numeroHistoria = matchHistoria[1];
-    } else {
+
+    if (!datos.dni) {
         for (let i = 0; i < lineas.length; i++) {
             const lineaUpper = lineas[i].toUpperCase();
-            if (/HISTORIA\s*CLINICA|NRO\s*DE\s*HISTORIA/i.test(lineaUpper)) {
-                const matchEnLinea = lineas[i].match(/(\d{5,10})/);
-                if (matchEnLinea) { datos.numeroHistoria = matchEnLinea[1]; break; }
+            if (/D\.?N\.?I\.?|DOCUMENTO\s*DE\s*IDENTIDAD|IDENTIDAD/i.test(lineaUpper)) {
+                const matchEnLinea = lineas[i].match(/(\d{8})/);
+                if (matchEnLinea) { 
+                    datos.dni = matchEnLinea[1]; 
+                    break; 
+                }
                 if (i + 1 < lineas.length) {
-                    const matchSiguiente = lineas[i + 1].match(/^(\d{5,10})$/);
-                    if (matchSiguiente) { datos.numeroHistoria = matchSiguiente[1]; break; }
+                    const matchSiguiente = lineas[i + 1].match(/^(\d{8})$/);
+                    if (matchSiguiente) { 
+                        datos.dni = matchSiguiente[1]; 
+                        break; 
+                    }
                 }
             }
         }
     }
-    
+
+    // ========== NOMBRES Y APELLIDOS - Búsqueda por índice ==========
+    let indiceNombre = -1;
+    for (let i = 0; i < lineas.length; i++) {
+        const lineaUpper = lineas[i].toUpperCase();
+        if (/NOMBRE\s*Y\s*APELLIDOS|APELLIDOS\s*PACIENTE|NOMBRE\s*PACIENTE/i.test(lineaUpper)) {
+            indiceNombre = i;
+            break;
+        }
+    }
+
+    if (indiceNombre !== -1) {
+        for (let j = indiceNombre + 1; j < lineas.length && j < indiceNombre + 5; j++) {
+            const linea = lineas[j].trim().toUpperCase();
+            if (/^[A-Z\s]{10,80}$/.test(linea) && !/\d/.test(linea)) {
+                if (!/NRO|HISTORIA|DNI|DOCUMENTO|TIPO|EXAMEN|FECHA|HORA|SEXO|EDAD|SERVICIO|AREA/i.test(linea)) {
+                    datos.nombres = linea.replace(/\s+/g, ' ').trim();
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!datos.nombres) {
+        const matchNombres = textoUpper.match(/NOMBRE\s*Y\s*APELLIDOS\s*(?:PACIENTE)?\s*[:\n]?\s*([A-Z\s]{10,80})(?=\n|$)/);
+        if (matchNombres) {
+            datos.nombres = matchNombres[1].trim().replace(/\s+/g, ' ');
+        }
+    }
+
+    // ========== EXAMEN SOLICITADO ==========
+    const patronesExamen = [
+        /EXAMEN\s*RADIOLOGICO\s*DE\s*([^\n]{10,200}?)\s*(?=\s*\d{5}|\s*INDICACIONES|\s*INDICACIONE|\s*AREA|\s*RADIOLOGIA\s*DIAGNOSTICA|$)/i,
+        /EXAMEN\s*RADIOLOGICO\s*([^\n]{10,200})/i,
+        /RADIOLOGIA\s*DIAGNOSTICA\s*EXAMEN\s*([^\n]{10,200})/i,
+    ];
+
+    for (const patron of patronesExamen) {
+        const match = textoUpper.match(patron);
+        if (match) {
+            datos.examen = match[0].trim().replace(/\s+/g, ' ').substring(0, 100);
+            break;
+        }
+    }
+
+    // ========== NRO DE HISTORIA CLINICA - Múltiples patrones ==========
+    const patronesHistoria = [
+        /NRO\.?\s*DE?\s*HISTORIA\s*CLINICA\s*(\d{5,10})/i,
+        /HISTORIA\s*CLINICA\s*(\d{5,10})/i,
+        /NRO\.?\s*HISTORIA\s*(\d{5,10})/i,
+        /H\.C\.\s*(\d{5,10})/i,
+        /HISTORIA\s*(\d{5,10})/i,
+    ];
+
+    for (const patron of patronesHistoria) {
+        const match = textoNormalizado.match(patron);
+        if (match) {
+            datos.numeroHistoria = match[1];
+            break;
+        }
+    }
+
+    if (!datos.numeroHistoria) {
+        for (let i = 0; i < lineas.length; i++) {
+            const lineaUpper = lineas[i].toUpperCase();
+            if (/HISTORIA\s*CLINICA|NRO\.?\s*DE?\s*HISTORIA/i.test(lineaUpper)) {
+                const matchEnLinea = lineas[i].match(/(\d{5,10})/);
+                if (matchEnLinea) { 
+                    datos.numeroHistoria = matchEnLinea[1]; 
+                    break; 
+                }
+                if (i + 1 < lineas.length) {
+                    const matchSiguiente = lineas[i + 1].match(/^(\d{5,10})$/);
+                    if (matchSiguiente) { 
+                        datos.numeroHistoria = matchSiguiente[1]; 
+                        break; 
+                    }
+                }
+            }
+        }
+    }
+
     return datos;
 }
 
