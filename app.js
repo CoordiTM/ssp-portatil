@@ -2,7 +2,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
     getFirestore, collection, addDoc, onSnapshot, 
-    doc, updateDoc, query, orderBy, serverTimestamp, Timestamp, where, getDocs, deleteDoc, getDoc
+    doc, updateDoc, query, orderBy, serverTimestamp, Timestamp, where, getDocs, deleteDoc, getDoc, getDocFromServer
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // jsPDF y autoTable se cargan via script tags en HTML (UMD)
@@ -326,6 +326,19 @@ function dateToLocalInputValue(date) {
     const d = new Date(date);
     const pad = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// ==================== UTILIDAD: Forzar actualizacion visual de input datetime-local ====================
+function setDateTimeLocalValue(input, value) {
+    if (!input) return;
+    input.value = value;
+    // Forzar que el navegador reconozca y renderice el cambio
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+    // Forzar reflow para navegadores rebeldes
+    input.style.display = 'none';
+    input.offsetHeight; // trigger reflow
+    input.style.display = '';
 }
 
 // ==================== FUNCIONES GLOBALES ====================
@@ -711,7 +724,7 @@ window.exportarProduccionPDF = async function() {
 window.abrirModalEditarTecnologo = async function(id) {
     try {
         const docRef = doc(db, 'tecnologos', id);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await getDocFromServer(docRef);
         if (!docSnap.exists()) {
             alert('Tecnólogo Médico no encontrado');
             return;
@@ -754,10 +767,17 @@ window.guardarEdicionTecnologo = async function() {
 // ==================== ABRIR MODAL EDITAR SOLICITUD (CORREGIDO) ====================
 window.abrirModalEditarSolicitud = async function(id) {
     try {
+        // Mostrar modal inmediatamente para evitar problemas de renderizado en inputs ocultos
+        const modal = document.getElementById('modalEditarSolicitud');
+        if (modal) modal.classList.add('active');
+
+        // ✅ Leer SIEMPRE desde el servidor, nunca del caché local
         const docRef = doc(db, 'solicitudes', id);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await getDocFromServer(docRef);
+
         if (!docSnap.exists()) {
             alert('Solicitud no encontrada');
+            if (modal) modal.classList.remove('active');
             return;
         }
         const data = docSnap.data();
@@ -780,15 +800,20 @@ window.abrirModalEditarSolicitud = async function(id) {
         if (esProgramadoCheckbox) {
             esProgramadoCheckbox.checked = data.esProgramado || false;
         }
-        if (horaProgramadaInput && data.horaProgramada) {
-            // ✅ AHORA USA HORA LOCAL, NO UTC
-            const d = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
-            horaProgramadaInput.value = dateToLocalInputValue(d);
-        } else if (horaProgramadaInput) {
-            horaProgramadaInput.value = '';
-        }
+
         if (grupoHoraProgramada) {
             grupoHoraProgramada.style.display = data.esProgramado ? 'block' : 'none';
+        }
+
+        if (horaProgramadaInput) {
+            if (data.horaProgramada) {
+                // ✅ AHORA USA HORA LOCAL, NO UTC
+                const d = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+                const valorLocal = dateToLocalInputValue(d);
+                setDateTimeLocalValue(horaProgramadaInput, valorLocal);
+            } else {
+                setDateTimeLocalValue(horaProgramadaInput, '');
+            }
         }
 
         // Timestamps de estados (también corregidos a hora local)
@@ -797,14 +822,21 @@ window.abrirModalEditarSolicitud = async function(id) {
             const d = ts.toDate ? ts.toDate() : new Date(ts);
             return dateToLocalInputValue(d);
         };
-        document.getElementById('editSolCreado').value = toLocalInput(data.timestamps?.creado);
-        document.getElementById('editSolEnCamino').value = toLocalInput(data.timestamps?.enCamino);
-        document.getElementById('editSolFinalizado').value = toLocalInput(data.timestamps?.finalizado);
-        document.getElementById('editSolRechazado').value = toLocalInput(data.timestamps?.rechazado);
 
-        document.getElementById('modalEditarSolicitud').classList.add('active');
+        const creadoInput = document.getElementById('editSolCreado');
+        const enCaminoInput = document.getElementById('editSolEnCamino');
+        const finalizadoInput = document.getElementById('editSolFinalizado');
+        const rechazadoInput = document.getElementById('editSolRechazado');
+
+        if (creadoInput) setDateTimeLocalValue(creadoInput, toLocalInput(data.timestamps?.creado));
+        if (enCaminoInput) setDateTimeLocalValue(enCaminoInput, toLocalInput(data.timestamps?.enCamino));
+        if (finalizadoInput) setDateTimeLocalValue(finalizadoInput, toLocalInput(data.timestamps?.finalizado));
+        if (rechazadoInput) setDateTimeLocalValue(rechazadoInput, toLocalInput(data.timestamps?.rechazado));
+
     } catch (error) {
         alert('❌ Error: ' + error.message);
+        const modal = document.getElementById('modalEditarSolicitud');
+        if (modal) modal.classList.remove('active');
     }
 };
 
@@ -1022,7 +1054,7 @@ window.cargarServiciosSelect = async function(selectId) {
 window.abrirModalEditarServicio = async function(id) {
     try {
         const docRef = doc(db, 'servicios', id);
-        const docSnap = await getDoc(docRef);
+        const docSnap = await getDocFromServer(docRef);
         if (!docSnap.exists()) {
             alert('Servicio no encontrado');
             return;
