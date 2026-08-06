@@ -4,142 +4,413 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Administrador - HNASS</title>
-    <link rel="stylesheet" href="styles.css">
-    
-    <!-- jsPDF + autoTable para exportar PDFs -->
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/2964/2964514.png">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        .modal-wide {
-            max-width: 700px;
+        :root {
+            --primary: #1a5276;
+            --primary-light: #2e86ab;
+            --accent: #e74c3c;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --bg: #eef2f7;
+            --card: #ffffff;
+            --text: #2c3e50;
+            --border: #dce4ec;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            padding: 25px 20px;
+            text-align: center;
+            border-radius: 0 0 20px 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(26,82,118,0.3);
+        }
+        .header h1 { font-size: 1.4rem; margin-bottom: 5px; }
+        .header p { opacity: 0.9; font-size: 0.95rem; }
+        .menu-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 22px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        .card h2 {
+            color: var(--primary);
+            font-size: 1.15rem;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card h3 {
+            color: var(--primary);
+            font-size: 1rem;
+            margin: 15px 0 10px;
+        }
+
+        /* Formularios */
+        .form-group { margin-bottom: 14px; }
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1.5px solid var(--border);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            transition: border-color 0.2s;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-light);
+        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
+
+        /* Botones */
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(26,82,118,0.3);
+        }
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #555;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        .btn-danger {
+            background: #ffebee;
+            color: #d32f2f;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        .btn-edit {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        /* Filtros dashboard */
+        .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin: 15px 0; }
+        .btn-filtro {
+            background: white;
+            border: 2px solid var(--border);
+            padding: 8px 14px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-filtro:hover { border-color: var(--primary-light); }
+        .btn-filtro.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+
+        /* Cards de solicitud */
+        .solicitud-card-v2 {
+            background: white;
+            border-radius: 14px;
+            padding: 16px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            border-left: 4px solid var(--primary-light);
+        }
+        .solicitud-card-v2.alerta-roja { border-left-color: #e74c3c; }
+        .solicitud-card-v2.alerta-amarilla { border-left-color: #f39c12; }
+        .solicitud-card-v2.programado-futuro { border-left-color: #9b59b6; }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+        .card-titulo strong {
+            color: var(--primary);
+            font-size: 1rem;
+            display: block;
+        }
+        .card-titulo .dni {
+            font-size: 0.8rem;
+            color: #777;
+        }
+        .estado-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .estado-badge.pendiente { background: #fff3e0; color: #e65100; }
+        .estado-badge.programado-pendiente { background: #f3e5f5; color: #7b1fa2; }
+        .estado-badge.camino { background: #e3f2fd; color: #1565c0; }
+        .estado-badge.rechazado { background: #ffebee; color: #c62828; }
+        .estado-badge.finalizado { background: #e8f5e9; color: #2e7d32; }
+        .badge-programado {
+            display: inline-block;
+            background: #fff8e1;
+            color: #f57c00;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-top: 4px;
+        }
+        .card-info { font-size: 0.88rem; color: #555; }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 4px 0;
+        }
+        .info-row .tiempo { font-weight: 600; color: var(--primary); }
+        .card-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px dashed #eee;
+        }
+        .btn-action {
+            flex: 1;
+            min-width: 100px;
+            padding: 8px 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+        .btn-action:hover { opacity: 0.85; }
+        .btn-action.camino { background: #fff3e0; color: #e65100; }
+        .btn-action.notas { background: #f5f5f5; color: #555; }
+        .btn-action.rechazar { background: #ffebee; color: #d32f2f; }
+        .btn-action.pausa { background: #fff8e1; color: #f57c00; }
+        .btn-action.finalizar { background: #e8f5e9; color: #2e7d32; }
+        .btn-action.revertir { background: #e3f2fd; color: #1976d2; }
+        .btn-action.reiniciar { background: #e8f5e9; color: #2e7d32; }
+        .btn-action.kanteron { background: #e3f2fd; color: #1565c0; }
+        .card-foto { margin-top: 10px; }
+        .card-foto a { color: var(--primary-light); font-size: 0.85rem; }
+        .historial-notas {
+            margin-top: 10px;
+            padding: 10px;
+            background: #fafafa;
+            border-radius: 8px;
+            font-size: 0.8rem;
+        }
+        .nota-item { margin: 6px 0; padding: 6px; background: white; border-radius: 6px; }
+        .nota-fecha { color: #999; font-size: 0.75rem; }
+        .nota-tecnologo { color: var(--primary); font-weight: 600; font-size: 0.8rem; }
+        .nota-texto { color: #444; margin-top: 2px; }
+        .motivo { color: #d32f2f; font-size: 0.85rem; margin-top: 8px; }
+        .empty { text-align: center; color: #999; padding: 30px; }
+
+        /* Items de lista */
+        .tecnologo-item, .servicio-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: #fafafa;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+        .tecnologo-item span, .servicio-item span { font-size: 0.9rem; }
+
+        /* Tabla reporte */
+        .tabla-reporte {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            margin-top: 10px;
+        }
+        .tabla-reporte th, .tabla-reporte td {
+            border: 1px solid var(--border);
+            padding: 8px;
+            text-align: left;
+        }
+        .tabla-reporte th { background: var(--primary); color: white; }
+        .stats-reporte {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .stat-box {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        /* Modales */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 600px;
             max-height: 90vh;
             overflow-y: auto;
+            position: relative;
         }
-        .form-row {
+        .modal-header {
             display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
         }
-        .form-row .form-group {
-            flex: 1;
-            min-width: 200px;
+        .modal-header h3 { color: var(--primary); }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #999;
         }
-        .modal-content h4 {
-            border-bottom: 1px solid #eee;
-            padding-bottom: 8px;
+        .modal-actions {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
             margin-top: 20px;
+        }
+        .btn-save { background: var(--success); color: white; }
+        .btn-cancel { background: #f0f0f0; color: #555; }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #999;
+            font-size: 0.8rem;
+        }
+
+        /* Scroll top */
+        .scroll-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 45px;
+            height: 45px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.2rem;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header class="header-main" >
-            <div class="menu-hamburger" onclick="toggleMenu()">
-                <span></span><span></span><span></span>
-            </div>
-            <div class="dropdown-menu" id="dropdownMenu">
-                <a href="#" onclick="localStorage.clear(); window.location.href='index.html'; return false;">🚪 Cerrar sesión</a>
-            </div>
-            <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
-            <h2>Panel de Administración</h2>
-        </header>
 
-        <!-- GESTIÓN DE SOLICITUDES -->
-       <div class="card">
-    <h2>📊 Solicitudes</h2>
-    <div class="filtros" style="display:flex;gap:8px;flex-wrap:wrap;margin:15px 0;">
-        <button id="btn-todos" class="btn-filtro" onclick="filtrarEstado('todos')">📋 <span id="countTodos">0</span></button>
-        <button id="btn-pendiente" class="btn-filtro active" onclick="filtrarEstado('pendiente')">🔴 <span id="countPendiente">0</span></button>
-        <button id="btn-programado_pendiente" class="btn-filtro" onclick="filtrarEstado('programado_pendiente')">🕐 <span id="countProgramado">0</span></button>
-        <button id="btn-en_camino" class="btn-filtro" onclick="filtrarEstado('en_camino')">🚶 <span id="countEnCamino">0</span></button>
-        <button id="btn-rechazado" class="btn-filtro" onclick="filtrarEstado('rechazado')">❌ <span id="countRechazado">0</span></button>
-        <button id="btn-finalizado" class="btn-filtro" onclick="filtrarEstado('finalizado')">✅ <span id="countFinalizado">0</span></button>
-    </div>
-    <div style="margin:10px 0;">
-        <label>📅 Filtrar por fecha:</label>
-        <input type="date" id="fechaFiltro" style="padding:8px;border-radius:6px;border:1px solid #ddd;margin-left:8px;">
-    </div>
-    <h3 id="tituloLista" style="margin-top:15px;">🚨 Pendientes Urgentes</h3>
-    <div id="listaSolicitudesAdmin"></div>
+<div class="header">
+    <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
+    <p>Panel de Administración</p>
 </div>
-        <!-- Crear Servicio -->
-        <section class="card">
-            <h2>🏥 Crear Nuevo Servicio</h2>
-            <form id="formCrearServicio">
-                <div class="form-group">
-                    <label>Nombre del servicio:</label>
-                    <input type="text" id="servNombre" placeholder="Ej: Medicina, Cirugía, UCI, Emergencia" required>
-                </div>
-                <button type="submit" class="btn-primary">➕ Crear Servicio</button>
-            </form>
-        </section>
 
-        <!-- Lista de servicios -->
-        <section class="card">
-            <h2 class="acordeon-header" onclick="toggleAcordeon('servAcordeon')">
-                🏥 Servicios Registrados
-                <span class="acordeon-icon" id="servIcon">▼</span>
-            </h2>
-            <div id="servAcordeon" class="acordeon-body">
-                <div id="listaServicios" class="lista">
-                    <p class="empty">Cargando...</p>
-                </div>
-            </div>
-        </section>
+<div class="container">
 
-        <!-- Crear Tecnólogo -->
-        <section class="card">
-            <h2>👤 Crear Nuevo Tecnólogo</h2>
-            <form id="formCrearTecnologo">
-                <div class="form-group">
-                    <label>DNI:</label>
-                    <input type="text" id="tecDNI" placeholder="DNI del tecnólogo" maxlength="8" required>
-                </div>
-                <div class="form-group">
-                    <label>Nombre completo:</label>
-                    <input type="text" id="tecNombre" placeholder="Nombre y apellido" required>
-                </div>
-                <div class="form-group">
-                    <label>Contraseña:</label>
-                    <input type="password" id="tecClave" placeholder="Contraseña" required>
-                </div>
-                <button type="submit" class="btn-primary">➕ Crear Tecnólogo</button>
-            </form>
-        </section>
+    <!-- ==================== GESTIÓN DE SOLICITUDES (IGUAL QUE DASHBOARD) ==================== -->
+    <div class="card">
+        <h2>📊 Solicitudes</h2>
+        <div class="filtros">
+            <button id="btn-todos" class="btn-filtro" onclick="filtrarEstado('todos')">📋 <span id="countTodos">0</span></button>
+            <button id="btn-pendiente" class="btn-filtro active" onclick="filtrarEstado('pendiente')">🔴 <span id="countPendiente">0</span></button>
+            <button id="btn-programado_pendiente" class="btn-filtro" onclick="filtrarEstado('programado_pendiente')">🕐 <span id="countProgramado">0</span></button>
+            <button id="btn-en_camino" class="btn-filtro" onclick="filtrarEstado('en_camino')">🚶 <span id="countEnCamino">0</span></button>
+            <button id="btn-rechazado" class="btn-filtro" onclick="filtrarEstado('rechazado')">❌ <span id="countRechazado">0</span></button>
+            <button id="btn-finalizado" class="btn-filtro" onclick="filtrarEstado('finalizado')">✅ <span id="countFinalizado">0</span></button>
+        </div>
+        <div style="margin:10px 0;">
+            <label style="font-size:0.85rem;font-weight:600;color:#555;">📅 Filtrar por fecha:</label>
+            <input type="date" id="fechaFiltro" style="padding:8px;border-radius:6px;border:1px solid #ddd;margin-left:8px;">
+        </div>
+        <h3 id="tituloLista">🚨 Pendientes Urgentes</h3>
+        <div id="listaSolicitudesAdmin"></div>
+    </div>
 
-        <!-- Lista de tecnólogos -->
-        <section class="card">
-            <h2 class="acordeon-header" onclick="toggleAcordeon('tecAcordeon')">
-                👥 Tecnólogos Médicos Registrados
-                <span class="acordeon-icon" id="tecIcon">▼</span>
-            </h2>
-            <div id="tecAcordeon" class="acordeon-body">
-                <div id="listaTecnologos" class="lista">
-                    <p class="empty">Cargando...</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- Reportes -->
-        <section class="card">
-            <h2>📈 Reportes</h2>
-
-            <div class="form-group">
-                <label>Tipo de reporte:</label>
-                <select id="tipoReporte" onchange="toggleTecnologoFiltro()">
-                    <option value="general">General (todos los tecnólogos)</option>
-                    <option value="individual">Individual (por tecnólogo)</option>
-                </select>
-            </div>
-
-            <div class="form-group" id="grupoTecnologo" style="display:none;">
-                <label>Tecnólogo Médico:</label>
-                <select id="tecnologoFiltro">
-                    <option value="">Seleccionar...</option>
-                </select>
-            </div>
-
+    <!-- ==================== REPORTES ==================== -->
+    <div class="card">
+        <h2>📈 Reportes</h2>
+        <div class="form-row">
             <div class="form-group">
                 <label>Desde:</label>
                 <input type="date" id="fechaDesde">
@@ -148,144 +419,194 @@
                 <label>Hasta:</label>
                 <input type="date" id="fechaHasta">
             </div>
-
-            <button onclick="generarReporte()" class="btn-primary">📊 Generar Reporte</button>
-
-            <div id="resultadoReporte" class="reporte-resultado" style="margin-top:20px;"></div>
-        </section>
-
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Tipo de Reporte:</label>
+                <select id="tipoReporte">
+                    <option value="general">General</option>
+                    <option value="individual">Individual por Tecnólogo</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Tecnólogo Médico:</label>
+                <select id="tecnologoFiltro">
+                    <option value="">Seleccionar...</option>
+                </select>
+            </div>
+        </div>
+        <button onclick="generarReporte()" class="btn-primary" style="margin-bottom:10px;">📊 Generar Reporte</button>
+        <div id="resultadoReporte"></div>
     </div>
 
-    <script type="module" src="app.js"></script>
-    <script>
-        function toggleTecnologoFiltro() {
-            const tipo = document.getElementById('tipoReporte').value;
-            document.getElementById('grupoTecnologo').style.display = tipo === 'individual' ? 'block' : 'none';
-        }
-    </script>
-    <!-- Modal Editar Servicio -->
-    <div class="modal-overlay" id="modalEditarServicio">
-        <div class="modal-content">
-            <h3>✏️ Editar Servicio</h3>
-            <input type="hidden" id="editServId">
+    <!-- ==================== GESTIÓN DE TECNÓLOGOS ==================== -->
+    <div class="card">
+        <h2>👨‍⚕️ Tecnólogos Médicos</h2>
+        <form id="formCrearTecnologo">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>DNI:</label>
+                    <input type="text" id="tecDNI" required maxlength="8">
+                </div>
+                <div class="form-group">
+                    <label>Nombre completo:</label>
+                    <input type="text" id="tecNombre" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Clave:</label>
+                <input type="password" id="tecClave" required>
+            </div>
+            <button type="submit" class="btn-primary">➕ Crear Tecnólogo</button>
+        </form>
+        <h3>📋 Lista de Tecnólogos</h3>
+        <div id="listaTecnologos">
+            <p class="empty">Cargando...</p>
+        </div>
+    </div>
+
+    <!-- ==================== GESTIÓN DE SERVICIOS ==================== -->
+    <div class="card">
+        <h2>🏥 Servicios</h2>
+        <form id="formCrearServicio">
             <div class="form-group">
                 <label>Nombre del servicio:</label>
-                <input type="text" id="editServNombre" required>
+                <input type="text" id="servNombre" required>
             </div>
-            <div class="modal-buttons">
-                <button class="btn-guardar" onclick="guardarEdicionServicio()">💾 Guardar</button>
-                <button class="btn-cancelar" onclick="cerrarModalEditarServicio()">❌ Cancelar</button>
-            </div>
+            <button type="submit" class="btn-primary">➕ Crear Servicio</button>
+        </form>
+        <h3>📋 Lista de Servicios</h3>
+        <div id="listaServicios">
+            <p class="empty">Cargando...</p>
         </div>
     </div>
 
-    <!-- Modal Editar Tecnólogo -->
-    <div class="modal-overlay" id="modalEditarTecnologo">
-        <div class="modal-content">
-            <h3>✏️ Editar Tecnólogo</h3>
-            <input type="hidden" id="editTecId">
-            <div class="form-group">
-                <label>DNI:</label>
-                <input type="text" id="editTecDNI" maxlength="8">
-            </div>
-            <div class="form-group">
-                <label>Nombre completo:</label>
-                <input type="text" id="editTecNombre">
-            </div>
-            <div class="form-group">
-                <label>Contraseña:</label>
-                <input type="password" id="editTecClave" placeholder="Dejar en blanco para mantener actual">
-            </div>
-            <div class="modal-buttons">
-                <button class="btn-guardar" onclick="guardarEdicionTecnologo()">💾 Guardar</button>
-                <button class="btn-cancelar" onclick="cerrarModalEditar()">❌ Cancelar</button>
-            </div>
+</div>
+
+<div class="footer">
+    © 2026 SSP Rx Portátil - Desarrollado por Flurolab Academy
+</div>
+
+<button class="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<!-- ==================== MODAL: EDITAR TECNÓLOGO ==================== -->
+<div id="modalEditarTecnologo" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>✏️ Editar Tecnólogo Médico</h3>
+            <button class="modal-close" onclick="document.getElementById('modalEditarTecnologo').classList.remove('active')">&times;</button>
+        </div>
+        <input type="hidden" id="editTecId">
+        <div class="form-group">
+            <label>DNI:</label>
+            <input type="text" id="editTecDNI" maxlength="8">
+        </div>
+        <div class="form-group">
+            <label>Nombre:</label>
+            <input type="text" id="editTecNombre">
+        </div>
+        <div class="form-group">
+            <label>Nueva clave (dejar vacío para no cambiar):</label>
+            <input type="password" id="editTecClave">
+        </div>
+        <div class="modal-actions">
+            <button onclick="guardarEdicionTecnologo()" class="btn-primary btn-save">💾 Guardar</button>
+            <button onclick="document.getElementById('modalEditarTecnologo').classList.remove('active')" class="btn-secondary btn-cancel">❌ Cancelar</button>
         </div>
     </div>
+</div>
 
-    <script>
-        function toggleMenu() {
-            document.getElementById('dropdownMenu').classList.toggle('active');
-        }
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.menu-hamburger') && !e.target.closest('.dropdown-menu')) {
-                document.getElementById('dropdownMenu').classList.remove('active');
-            }
-        });
-        function cerrarModalEditar() {
-            document.getElementById('modalEditarTecnologo').classList.remove('active');
-        }
-    </script>
-    <button class="btn-volver-arriba" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" title="Volver arriba">↑</button>
+<!-- ==================== MODAL: EDITAR SERVICIO ==================== -->
+<div id="modalEditarServicio" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>✏️ Editar Servicio</h3>
+            <button class="modal-close" onclick="document.getElementById('modalEditarServicio').classList.remove('active')">&times;</button>
+        </div>
+        <input type="hidden" id="editServId">
+        <div class="form-group">
+            <label>Nombre del servicio:</label>
+            <input type="text" id="editServNombre">
+        </div>
+        <div class="modal-actions">
+            <button onclick="guardarEdicionServicio()" class="btn-primary btn-save">💾 Guardar</button>
+            <button onclick="document.getElementById('modalEditarServicio').classList.remove('active')" class="btn-secondary btn-cancel">❌ Cancelar</button>
+        </div>
+    </div>
+</div>
 
-        <!-- Modal Editar Solicitud -->
-    <div class="modal-overlay" id="modalEditarSolicitud">
-        <div class="modal-content modal-wide">
+<!-- ==================== MODAL: EDITAR SOLICITUD ==================== -->
+<div id="modalEditarSolicitud" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
             <h3>✏️ Editar Solicitud</h3>
-            <input type="hidden" id="editSolId">
+            <button class="modal-close" onclick="cerrarModalEditarSolicitud()">&times;</button>
+        </div>
+        <input type="hidden" id="editSolId">
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label>DNI Paciente:</label>
-                    <input type="text" id="editSolDNI" maxlength="8">
-                </div>
-                <div class="form-group">
-                    <label>Nombre Paciente:</label>
-                    <input type="text" id="editSolNombre">
-                </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>DNI Paciente:</label>
+                <input type="text" id="editSolDNI">
             </div>
-
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Servicio:</label>
-                    <input type="text" id="editSolServicio">
-                </div>
-                <div class="form-group">
-                    <label>N° Cama / Ubicación:</label>
-                    <input type="text" id="editSolCama">
-                </div>
+            <div class="form-group">
+                <label>Nombre Paciente:</label>
+                <input type="text" id="editSolNombre">
             </div>
+        </div>
 
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Solicitado por:</label>
-                    <input type="text" id="editSolSolicita">
-                </div>
-                <div class="form-group">
-                    <label>Tecnólogo Médico Asignado:</label>
-                    <input type="text" id="editSolTecnologo">
-                </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Servicio:</label>
+                <input type="text" id="editSolServicio">
             </div>
+            <div class="form-group">
+                <label>N° Cama:</label>
+                <input type="text" id="editSolCama">
+            </div>
+        </div>
 
+        <div class="form-row">
+            <div class="form-group">
+                <label>Solicitado por:</label>
+                <input type="text" id="editSolSolicita">
+            </div>
             <div class="form-group">
                 <label>Estado:</label>
                 <select id="editSolEstado">
-                    <option value="pendiente">⏳ Pendiente</option>
-                    <option value="en_camino">🚶 En camino</option>
-                    <option value="finalizado">✅ Atendido</option>
-                    <option value="rechazado">❌ No atendido</option>
+                    <option value="pendiente">Pendiente</option>
+                    <option value="en_camino">En camino</option>
+                    <option value="finalizado">Finalizado</option>
+                    <option value="rechazado">Rechazado</option>
                 </select>
             </div>
+        </div>
 
-            <div class="form-group">
-                <label>Notas / Observaciones:</label>
-                <textarea id="editSolNotas" rows="2"></textarea>
-            </div>
+        <div class="form-group">
+            <label>Tecnólogo Asignado:</label>
+            <input type="text" id="editSolTecnologo">
+        </div>
 
-            <!-- === NUEVO: Campos de Programación === -->
-            <h4 style="margin-top: 15px; color: #1a5276;">⏰ Programación</h4>
+        <div class="form-group">
+            <label>Notas / Observaciones:</label>
+            <textarea id="editSolNotas" rows="2"></textarea>
+        </div>
+
+        <div style="background:#f8f9fa;padding:12px;border-radius:10px;margin:15px 0;">
+            <h4 style="color:var(--primary);margin-bottom:10px;">⏰ Programación</h4>
             <div class="form-group">
                 <label>
-                    <input type="checkbox" id="editSolEsProgramado" onchange="toggleEditSolHoraProgramada()"> 
-                    Solicitud Programada
+                    <input type="checkbox" id="editSolEsProgramado"> Solicitud Programada
                 </label>
             </div>
             <div class="form-group" id="grupoEditSolHoraProgramada" style="display:none;">
                 <label>Hora Programada:</label>
                 <input type="datetime-local" id="editSolHoraProgramada">
             </div>
+        </div>
 
-            <h4 style="margin-top: 15px; color: #1a5276;">🕐 Timestamps (Fechas/Hora)</h4>
+        <div style="background:#f8f9fa;padding:12px;border-radius:10px;margin:15px 0;">
+            <h4 style="color:var(--primary);margin-bottom:10px;">🕐 Timestamps (Fechas/Hora)</h4>
             <div class="form-row">
                 <div class="form-group">
                     <label>Creado:</label>
@@ -306,26 +627,16 @@
                     <input type="datetime-local" id="editSolRechazado">
                 </div>
             </div>
+        </div>
 
-            <div class="modal-buttons">
-                <button class="btn-guardar" onclick="guardarEdicionSolicitud()">💾 Guardar Cambios</button>
-                <button class="btn-cancelar" onclick="cerrarModalEditarSolicitud()">❌ Cancelar</button>
-            </div>
+        <div class="modal-actions">
+            <button onclick="guardarEdicionSolicitud()" class="btn-primary btn-save">💾 Guardar Cambios</button>
+            <button onclick="cerrarModalEditarSolicitud()" class="btn-secondary btn-cancel">❌ Cancelar</button>
         </div>
     </div>
+</div>
 
-        <footer style="text-align: center; margin-top: 20px; padding: 15px; color: #999; font-size: 0.75rem;">
-            <p>© 2026 SSP Rx Portátil - Desarrollado por Flurolab Academy</p>
-        </footer>
+<script type="module" src="app.js"></script>
 
-    <script>
-        function toggleEditSolHoraProgramada() {
-            const checkbox = document.getElementById('editSolEsProgramado');
-            const grupo = document.getElementById('grupoEditSolHoraProgramada');
-            if (grupo) {
-                grupo.style.display = checkbox.checked ? 'block' : 'none';
-            }
-        }
-    </script>
-    </body>
+</body>
 </html>
