@@ -332,12 +332,10 @@ function dateToLocalInputValue(date) {
 function setDateTimeLocalValue(input, value) {
     if (!input) return;
     input.value = value;
-    // Forzar que el navegador reconozca y renderice el cambio
     input.dispatchEvent(new Event('input', { bubbles: true }));
     input.dispatchEvent(new Event('change', { bubbles: true }));
-    // Forzar reflow para navegadores rebeldes
     input.style.display = 'none';
-    input.offsetHeight; // trigger reflow
+    input.offsetHeight;
     input.style.display = '';
 }
 
@@ -767,11 +765,9 @@ window.guardarEdicionTecnologo = async function() {
 // ==================== ABRIR MODAL EDITAR SOLICITUD (CORREGIDO) ====================
 window.abrirModalEditarSolicitud = async function(id) {
     try {
-        // Mostrar modal inmediatamente para evitar problemas de renderizado en inputs ocultos
         const modal = document.getElementById('modalEditarSolicitud');
         if (modal) modal.classList.add('active');
 
-        // ✅ Leer SIEMPRE desde el servidor, nunca del caché local
         const docRef = doc(db, 'solicitudes', id);
         const docSnap = await getDocFromServer(docRef);
 
@@ -792,7 +788,6 @@ window.abrirModalEditarSolicitud = async function(id) {
         document.getElementById('editSolEstado').value = data.estado || 'pendiente';
         document.getElementById('editSolTecnologo').value = data.tecnologoAsignado || '';
 
-        // === CAMPOS DE PROGRAMACIÓN (CORREGIDO) ===
         const esProgramadoCheckbox = document.getElementById('editSolEsProgramado');
         const horaProgramadaInput = document.getElementById('editSolHoraProgramada');
         const grupoHoraProgramada = document.getElementById('grupoEditSolHoraProgramada');
@@ -807,7 +802,6 @@ window.abrirModalEditarSolicitud = async function(id) {
 
         if (horaProgramadaInput) {
             if (data.horaProgramada) {
-                // ✅ AHORA USA HORA LOCAL, NO UTC
                 const d = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
                 const valorLocal = dateToLocalInputValue(d);
                 setDateTimeLocalValue(horaProgramadaInput, valorLocal);
@@ -816,7 +810,6 @@ window.abrirModalEditarSolicitud = async function(id) {
             }
         }
 
-        // Timestamps de estados (también corregidos a hora local)
         const toLocalInput = (ts) => {
             if (!ts) return '';
             const d = ts.toDate ? ts.toDate() : new Date(ts);
@@ -851,7 +844,6 @@ window.guardarEdicionSolicitud = async function() {
     const esProgramado = document.getElementById('editSolEsProgramado')?.checked || false;
     const horaProgramadaInput = document.getElementById('editSolHoraProgramada')?.value;
 
-    // ✅ VALIDACIÓN: si es programado, obligar hora
     if (esProgramado && !horaProgramadaInput) {
         alert('❌ Si marca la solicitud como Programada, debe ingresar la fecha y hora.');
         return;
@@ -1429,7 +1421,8 @@ if (formLogin) {
 
 // ==================== PAGINA: DASHBOARD ====================
 
-const listaCards = document.getElementById('listaSolicitudes');
+// ✅ UNIFICADO: detecta tanto dashboard como admin
+const listaCards = document.getElementById('listaSolicitudes') || document.getElementById('listaSolicitudesAdmin');
 let estadoFiltro = 'pendiente';
 let fechaFiltro = '';
 let solicitudesAnteriores = new Set();
@@ -1469,7 +1462,50 @@ function crearCardSolicitud(sol) {
         historialNotasHTML += '</div>';
     }
 
-    if (data.estado === 'pendiente') {
+    const esAdmin = localStorage.getItem('rol') === 'admin';
+
+    if (esAdmin) {
+        // ==================== ACCIONES DE ADMIN ====================
+        acciones = '<button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
+        acciones += '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
+        if (data.estado !== 'pendiente') {
+            acciones += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
+        }
+        acciones += '<button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
+
+        if (data.estado === 'rechazado' && data.motivoRechazo) {
+            acciones += '<p class="motivo" style="color:#d32f2f;margin-top:8px;"><strong>Motivo:</strong> ' + data.motivoRechazo + '</p>';
+        }
+
+        // Trazabilidad para finalizados (igual que dashboard usuario)
+        if (data.estado === 'finalizado') {
+            let lineasTiempo = [];
+            if (data.timestamps?.creado) lineasTiempo.push('📋 Registro: ' + formatearFechaHora(data.timestamps.creado));
+            if (data.timestamps?.enCamino) lineasTiempo.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
+            if (data.pausas && data.pausas.length > 0) {
+                data.pausas.forEach((p, idx) => {
+                    const inicio = p.inicio ? formatearFechaHora(p.inicio) : '-';
+                    const fin = p.reinicioReal ? formatearFechaHora(p.reinicioReal) : (p.reinicioProgramado ? formatearFechaHora(p.reinicioProgramado) + ' (prog)' : '...');
+                    lineasTiempo.push('⏸️ Pausa ' + (idx + 1) + ': ' + inicio + ' → ' + fin);
+                });
+            }
+            if (data.timestamps?.finalizado) lineasTiempo.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
+
+            const tiemposCalc = calcularTiempoEfectivo(data);
+            const tiempoTotal = tiemposCalc.efectivo > 0 
+                ? '<strong style="color:#2e7d32;">⏱️ Tiempo total: ' + formatearTiempoHHMMSS(tiemposCalc.efectivo) + '</strong>'
+                : '';
+
+            let trazabilidadHTML = '';
+            if (lineasTiempo.length > 0) {
+                trazabilidadHTML = '<div style="background:#e8f5e9;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;line-height:1.6;">';
+                trazabilidadHTML += lineasTiempo.join('<br>');
+                if (tiempoTotal) trazabilidadHTML += '<br>' + tiempoTotal;
+                trazabilidadHTML += '</div>';
+            }
+            acciones += trazabilidadHTML;
+        }
+    } else if (data.estado === 'pendiente') {
         if (esProgramadoPendiente) {
             estadoBadge = '<span class="estado-badge programado-pendiente">⏰ PROGRAMADO</span>';
             acciones = '<button onclick="cambiarEstado(\'' + id + '\', \'en_camino\')" class="btn-action camino">🚶 ATENDER AHORA</button><button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
@@ -1520,11 +1556,6 @@ function crearCardSolicitud(sol) {
         acciones = '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action kanteron">🔍 Kanteron PACS</button>' + trazabilidadHTML;
     }
 
-    let adminBotones = '';
-    if (localStorage.getItem('rol') === 'admin') {
-        adminBotones = '<div style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;"><button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button><button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button></div>';
-    }
-
     let servicioHTML = '';
     if (data.servicio) {
         servicioHTML = '<div class="info-row"><span>🏥 ' + data.servicio + '</span>';
@@ -1548,7 +1579,7 @@ function crearCardSolicitud(sol) {
     let cardClass = 'solicitud-card-v2 ' + alerta;
     if (esProgramadoPendiente) cardClass += ' programado-pendiente-card';
 
-    return '<div class="' + cardClass + '" id="card-' + id + '"><div class="card-header"><div class="card-titulo"><strong>' + (data.nombrePaciente || '-') + '</strong><span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>' + indicadorProgramado + datosIncompletosBadge + '</div>' + estadoBadge + '</div><div class="card-info"><div class="info-row"><span>🕐 ' + fechaHora + '</span><span class="tiempo">⏱️ ' + tiempo + '</span></div>' + servicioHTML + '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>' + (data.notas ? '<div class="info-row notas">📝 ' + data.notas + '</div>' : '') + '</div>' + archivoHTML + '<div class="card-actions">' + acciones + historialNotasHTML + adminBotones + '</div></div>';
+    return '<div class="' + cardClass + '" id="card-' + id + '"><div class="card-header"><div class="card-titulo"><strong>' + (data.nombrePaciente || '-') + '</strong><span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>' + indicadorProgramado + datosIncompletosBadge + '</div>' + estadoBadge + '</div><div class="card-info"><div class="info-row"><span>🕐 ' + fechaHora + '</span><span class="tiempo">⏱️ ' + tiempo + '</span></div>' + servicioHTML + '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>' + (data.notas ? '<div class="info-row notas">📝 ' + data.notas + '</div>' : '') + '</div>' + archivoHTML + '<div class="card-actions">' + acciones + historialNotasHTML + '</div></div>';
 }
 
 let unsubscribe = null;
@@ -1559,6 +1590,7 @@ function cargarSolicitudes() {
     unsubscribe = onSnapshot(q, (snapshot) => {
         let html = '';
         let counts = { 
+            todos: 0,
             pendiente: 0, 
             programado_pendiente: 0,
             en_camino: 0, 
@@ -1570,6 +1602,8 @@ function cargarSolicitudes() {
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const ahora = new Date();
+
+            counts.todos++;
 
             let estadoClasificado = data.estado;
             if (data.estado === 'pendiente') {
@@ -1588,7 +1622,8 @@ function cargarSolicitudes() {
 
             if (counts[estadoClasificado] !== undefined) counts[estadoClasificado]++;
 
-            if (data.estado === 'pendiente' && !data.esProgramado && !solicitudesAnteriores.has(docSnap.id)) {
+            const esAdmin = localStorage.getItem('rol') === 'admin';
+            if (!esAdmin && data.estado === 'pendiente' && !data.esProgramado && !solicitudesAnteriores.has(docSnap.id)) {
                 nuevasSolicitudes++;
                 mostrarNotificacionCompleta(
                     '🚨 Nueva Solicitud Rx Portatil',
@@ -1599,12 +1634,14 @@ function cargarSolicitudes() {
             }
         });
 
+        const countTodos = document.getElementById('countTodos');
         const countPendiente = document.getElementById('countPendiente');
         const countProgramado = document.getElementById('countProgramado');
         const countEnCamino = document.getElementById('countEnCamino');
         const countRechazado = document.getElementById('countRechazado');
         const countFinalizado = document.getElementById('countFinalizado');
 
+        if (countTodos) countTodos.textContent = counts.todos;
         if (countPendiente) countPendiente.textContent = counts.pendiente;
         if (countProgramado) countProgramado.textContent = counts.programado_pendiente;
         if (countEnCamino) countEnCamino.textContent = counts.en_camino;
@@ -1661,19 +1698,26 @@ if (listaCards) {
             cargarSolicitudes();
         });
     }
-    solicitarPermisoNotificaciones().then(permitido => {
-        if (permitido) {
-            console.log('Notificaciones activadas automaticamente');
-        } else {
-            console.log('Notificaciones no permitidas por el usuario');
-        }
-    });
+
+    const esAdmin = localStorage.getItem('rol') === 'admin';
+    if (!esAdmin) {
+        solicitarPermisoNotificaciones().then(permitido => {
+            if (permitido) {
+                console.log('Notificaciones activadas automaticamente');
+            } else {
+                console.log('Notificaciones no permitidas por el usuario');
+            }
+        });
+    }
+
     cargarSolicitudes();
 
-    setInterval(() => {
-        console.log('Recargando dashboard automaticamente (15 minutos)');
-        window.location.reload();
-    }, 900000);
+    if (!esAdmin) {
+        setInterval(() => {
+            console.log('Recargando dashboard automaticamente (15 minutos)');
+            window.location.reload();
+        }, 900000);
+    }
 }
 
 // ==================== PAGINA: ADMIN ====================
@@ -1792,135 +1836,15 @@ if (formCrearTecnologo) {
     cargarTecnologosSelect();
 }
 
-// ==================== ADMIN: GESTION DE SOLICITUDES ====================
+// ==================== ADMIN: GESTION DE SOLICITUDES (DEPRECADO - ahora usa cargarSolicitudes) ====================
+/*
+window.cargarSolicitudesAdmin = function() { ... };
+*/
 
-window.cargarSolicitudesAdmin = function() {
-    const filtro = document.getElementById('filtroEstadoAdmin').value;
-    const contenedor = document.getElementById('listaSolicitudesAdmin');
-    if (!contenedor) return;
-    let q;
-    if (filtro === 'todos') {
-        q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
-    } else {
-        q = query(collection(db, 'solicitudes'), where('estado', '==', filtro), orderBy('timestamps.creado', 'desc'));
-    }
-    onSnapshot(q, (snapshot) => {
-        if (snapshot.empty) {
-            contenedor.innerHTML = '<p class="empty">No hay solicitudes</p>';
-            return;
-        }
-        let html = '';
-        snapshot.forEach((docSnap) => {
-            const data = docSnap.data();
-            const id = docSnap.id;
-            const estadosLabels = {
-                'pendiente': '⏳ Pendiente',
-                'en_camino': '🚶 En camino',
-                'rechazado': '❌ No atendido',
-                'finalizado': '✅ Atendido'
-            };
-
-            let tiempoInfo = '';
-            if (data.estado === 'finalizado' && data.timestamps?.creado && data.timestamps?.finalizado) {
-                const tiempos = calcularTiempoEfectivo(data);
-                tiempoInfo = '<div style="background:#e8f5e9;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;">';
-                tiempoInfo += '<strong style="color:#2e7d32;">⏱️ Tiempo total: ' + formatearTiempoHHMMSS(tiempos.efectivo) + '</strong>';
-                if (tiempos.pausasTiempo > 0) {
-                    tiempoInfo += ' (+' + formatearTiempoHHMMSS(tiempos.pausasTiempo) + ' en pausas)';
-                }
-                tiempoInfo += '</div>';
-            }
-
-            let trazabilidadHTML = '';
-            let estadosLines = [];
-            if (data.timestamps?.creado) {
-                estadosLines.push('📋 Registrado: ' + formatearFechaHora(data.timestamps.creado));
-            }
-            if (data.timestamps?.enCamino) {
-                estadosLines.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
-            }
-            if (data.pausas && data.pausas.length > 0) {
-                data.pausas.forEach((p, idx) => {
-                    const inicio = p.inicio ? formatearFechaHora(p.inicio) : '-';
-                    const fin = p.reinicioReal ? formatearFechaHora(p.reinicioReal) : (p.reinicioProgramado ? formatearFechaHora(p.reinicioProgramado) + ' (prog)' : '...');
-                    estadosLines.push('⏸️ Pausa ' + (idx + 1) + ': ' + inicio + ' → ' + fin);
-                });
-            }
-            if (data.timestamps?.finalizado) {
-                estadosLines.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
-            }
-            if (data.timestamps?.rechazado) {
-                estadosLines.push('❌ Rechazado: ' + formatearFechaHora(data.timestamps.rechazado));
-            }
-            if (estadosLines.length > 0) {
-                trazabilidadHTML = '<div style="background:#f0f7ff;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;line-height:1.6;">';
-                trazabilidadHTML += '<strong style="color:#1a5276;">📊 Trazabilidad:</strong><br>';
-                trazabilidadHTML += estadosLines.join('<br>');
-                trazabilidadHTML += '</div>';
-            }
-
-            let notasHTML = '';
-            if (data.historialNotas && data.historialNotas.length > 0) {
-                notasHTML = '<div style="background:#fff8f0;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;">';
-                notasHTML += '<strong style="color:#e65100;">📝 Notas de Tecnólogos (' + data.historialNotas.length + '):</strong><br>';
-                data.historialNotas.forEach((nota, idx) => {
-                    notasHTML += '<div style="border-left:2px solid #ff9800;padding-left:8px;margin:4px 0;">';
-                    notasHTML += '<span style="color:#666;font-size:11px;">📅 ' + nota.fecha + ' | 👤 ' + nota.tecnologo + '</span><br>';
-                    notasHTML += '<span style="color:#333;">' + nota.texto + '</span>';
-                    notasHTML += '</div>';
-                });
-                notasHTML += '</div>';
-            }
-
-            const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
-                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
-            }) || '-';
-
-            html += '<div class="solicitud-card-v2" style="border-left: 4px solid #1a5276;">';
-            html += '<div class="card-header">';
-            html += '<div class="card-titulo">';
-            html += '<strong>' + (data.nombrePaciente || '-') + '</strong>';
-            html += '<span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>';
-            if (data.servicio) {
-                html += '<span class="servicio-badge">🏥 ' + data.servicio + '</span>';
-            }
-            if (data.numeroCama) {
-                html += '<span class="servicio-badge">🛏️ ' + data.numeroCama + '</span>';
-            }
-            html += '</div>';
-            html += '<span class="estado-badge ' + data.estado + '">' + estadosLabels[data.estado] + '</span>';
-            html += '</div>';
-            html += '<div class="card-info">';
-            html += '<div class="info-row"><span>🕐 ' + fecha + '</span></div>';
-            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
-            if (data.motivoRechazo) {
-                html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
-            }
-            html += '</div>';
-
-            html += tiempoInfo;
-            html += trazabilidadHTML;
-            html += notasHTML;
-
-            if (data.archivoSolicitud) {
-                const esPDF = data.esPDF ? '📄 PDF' : '📷 Foto';
-                html += '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + esPDF + ' - Ver solicitud</a></div>';
-            }
-            html += '<div class="admin-actions">';
-            html += '<button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
-            html += '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
-            html += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
-            html += '<button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
-            html += '</div>';
-            html += '</div>';
-        });
-        contenedor.innerHTML = html;
-    });
-};
-
-if (document.getElementById('listaSolicitudesAdmin')) {
-    cargarSolicitudesAdmin();
-}
+// Ya no se llama cargarSolicitudesAdmin() porque el admin ahora usa la misma vista que el dashboard
+// if (document.getElementById('listaSolicitudesAdmin')) {
+//     cargarSolicitudesAdmin();
+// }
 
 // ==================== LISTENER: Mostrar/ocultar hora programada en modal de edición ====================
 document.addEventListener('DOMContentLoaded', () => {
