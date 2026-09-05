@@ -640,29 +640,27 @@ window.exportarProduccionPDF = async function() {
     let produccion = [];
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
-        const fechaFinalizado = d.timestamps?.finalizado?.toDate ? d.timestamps.finalizado.toDate() : null;
-
-        if (fechaFinalizado && fechaFinalizado >= fechaDesde && fechaFinalizado <= fechaHasta && d.estado === 'finalizado') {
+        const fechaCreado = d.timestamps?.creado?.toDate();
+        if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta && d.estado === 'finalizado') {
             let tiempoAtencion = '-';
-
+            
             let puntoInicio = d.timestamps.creado;
             if (d.esProgramado && d.horaProgramada) {
                 puntoInicio = d.horaProgramada;
             }
-
+            
             if (puntoInicio && d.timestamps.finalizado) {
                 const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
                 const fin = d.timestamps.finalizado.toDate ? d.timestamps.finalizado.toDate() : new Date(d.timestamps.finalizado);
                 const diffSeg = (fin - inicio) / 1000;
                 tiempoAtencion = formatearTiempoHHMMSS(diffSeg);
             }
-
+            
             produccion.push({
-                fechaFinalizado: fechaFinalizado,
-                fechaHoraStr: formatearFechaHora(d.timestamps?.finalizado),
+                fechaHora: formatearFechaHora(d.timestamps?.creado),
                 numeroSolicitud: d.ocrData?.numeroSolicitud || '-',
-                dni: d.dniPaciente || '-',
-                paciente: d.nombrePaciente || '-',
+                dni: d.dniPaciente,
+                paciente: d.nombrePaciente,
                 servicio: d.servicio || '-',
                 numeroCama: d.numeroCama || '-',
                 tiempoAtencion: tiempoAtencion,
@@ -671,13 +669,8 @@ window.exportarProduccionPDF = async function() {
         }
     });
 
-    // Ordenar por fecha de finalización descendente (más reciente primero)
-    produccion.sort(function(a, b) {
-        return b.fechaFinalizado - a.fechaFinalizado;
-    });
-
     if (produccion.length === 0) {
-        alert('No hay atenciones finalizadas en este rango de fechas');
+        alert('No hay atenciones atendidas en este rango de fechas');
         return;
     }
 
@@ -689,10 +682,8 @@ window.exportarProduccionPDF = async function() {
     pdf.text('Periodo: ' + desdeInput + ' al ' + hastaInput, 14, 29);
     pdf.text('Total atenciones: ' + produccion.length, 14, 35);
 
-    const headers = ['N°', 'Fecha/Hora Finalizado', 'N° Solicitud', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
-    const data = produccion.map(function(p, index) {
-        return [index + 1, p.fechaHoraStr, p.numeroSolicitud, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas];
-    });
+    const headers = ['Fecha/Hora', 'N° Solicitud', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
+    const data = produccion.map(p => [p.fechaHora, p.numeroSolicitud, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas]);
 
     pdf.autoTable({
         head: [headers],
@@ -705,7 +696,7 @@ window.exportarProduccionPDF = async function() {
     });
 
     pdf.save('produccion_' + tecnologoNombre.replace(/\s+/g, '_') + '_' + desdeInput + '_' + hastaInput + '.pdf');
-};;
+};
 
 // ==================== FUNCIONES GLOBALES: EDITAR TECNÓLOGO ====================
 
@@ -1793,7 +1784,8 @@ if (formCrearTecnologo) {
 // ==================== ADMIN: GESTION DE SOLICITUDES ====================
 
 window.cargarSolicitudesAdmin = function() {
-    const filtro = document.getElementById('filtroEstadoAdmin').value;
+    const filtroElement = document.getElementById('filtroEstadoAdmin');
+    const filtro = filtroElement ? filtroElement.value : 'todos';
     const contenedor = document.getElementById('listaSolicitudesAdmin');
     if (!contenedor) return;
     let q;
@@ -1817,7 +1809,7 @@ window.cargarSolicitudesAdmin = function() {
                 'rechazado': '❌ No atendido',
                 'finalizado': '✅ Atendido'
             };
-            
+
             // === NUEVO: Calcular tiempo de atención para finalizados ===
             let tiempoInfo = '';
             if (data.estado === 'finalizado' && data.timestamps?.creado && data.timestamps?.finalizado) {
@@ -1829,7 +1821,7 @@ window.cargarSolicitudesAdmin = function() {
                 }
                 tiempoInfo += '</div>';
             }
-            
+
             // === NUEVO: Trazabilidad de estados con timestamps ===
             let trazabilidadHTML = '';
             let estadosLines = [];
@@ -1858,7 +1850,7 @@ window.cargarSolicitudesAdmin = function() {
                 trazabilidadHTML += estadosLines.join('<br>');
                 trazabilidadHTML += '</div>';
             }
-            
+
             // === NUEVO: Historial de notas de tecnólogos ===
             let notasHTML = '';
             if (data.historialNotas && data.historialNotas.length > 0) {
@@ -1872,11 +1864,11 @@ window.cargarSolicitudesAdmin = function() {
                 });
                 notasHTML += '</div>';
             }
-            
+
             const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
                 day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
             }) || '-';
-            
+
             html += '<div class="solicitud-card-v2" style="border-left: 4px solid #1a5276;">';
             html += '<div class="card-header">';
             html += '<div class="card-titulo">';
@@ -1898,27 +1890,27 @@ window.cargarSolicitudesAdmin = function() {
                 html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
             }
             html += '</div>';
-            
+
             // === NUEVO: Insertar tiempo, trazabilidad y notas ===
             html += tiempoInfo;
             html += trazabilidadHTML;
             html += notasHTML;
-            
+
             if (data.archivoSolicitud) {
                 const esPDF = data.esPDF ? '📄 PDF' : '📷 Foto';
                 html += '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + esPDF + ' - Ver solicitud</a></div>';
             }
             html += '<div class="admin-actions">';
-            html += '<button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
-            html += '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
-            html += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
-            html += '<button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
+            html += '<button onclick="abrirModalEditarSolicitud('' + id + '')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
+            html += '<button onclick="abrirKanteron('' + (data.dniPaciente || '') + '')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
+            html += '<button onclick="revertirEstadoAdmin('' + id + '')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
+            html += '<button onclick="eliminarSolicitud('' + id + '')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
             html += '</div>';
             html += '</div>';
         });
         contenedor.innerHTML = html;
     });
-};
+};;
 
 if (document.getElementById('listaSolicitudesAdmin')) {
     cargarSolicitudesAdmin();
