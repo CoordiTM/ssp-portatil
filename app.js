@@ -2,7 +2,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { 
     getFirestore, collection, addDoc, onSnapshot, 
-    doc, updateDoc, query, orderBy, serverTimestamp, Timestamp, where, getDocs, deleteDoc, getDoc, getDocFromServer
+    doc, updateDoc, query, orderBy, serverTimestamp, Timestamp, where, getDocs, deleteDoc, getDoc
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // jsPDF y autoTable se cargan via script tags en HTML (UMD)
@@ -320,25 +320,6 @@ function formatearFechaHora(timestamp) {
     });
 }
 
-// ==================== UTILIDAD: Date → datetime-local (hora LOCAL, no UTC) ====================
-function dateToLocalInputValue(date) {
-    if (!date) return '';
-    const d = new Date(date);
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-// ==================== UTILIDAD: Forzar actualizacion visual de input datetime-local ====================
-function setDateTimeLocalValue(input, value) {
-    if (!input) return;
-    input.value = value;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
-    input.style.display = 'none';
-    input.offsetHeight;
-    input.style.display = '';
-}
-
 // ==================== FUNCIONES GLOBALES ====================
 
 window.cambiarEstado = async function(id, nuevoEstado) {
@@ -449,7 +430,7 @@ window.filtrarEstado = function(estado) {
     });
     const btnActivo = document.getElementById('btn-' + estado);
     if (btnActivo) btnActivo.classList.add('active');
-
+    
     const titulos = {
         'todos': '📋 Todas',
         'pendiente': '🚨 Pendientes Urgentes',
@@ -458,7 +439,7 @@ window.filtrarEstado = function(estado) {
         'rechazado': '❌ No atendidas',
         'finalizado': '✅ Atendidas'
     };
-
+    
     const tituloEl = document.getElementById('tituloLista');
     if (tituloEl) tituloEl.textContent = titulos[estado] || '📋 Solicitudes';
     cargarSolicitudes();
@@ -659,8 +640,9 @@ window.exportarProduccionPDF = async function() {
     let produccion = [];
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
-        const fechaCreado = d.timestamps?.creado?.toDate();
-        if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta && d.estado === 'finalizado') {
+        const fechaFinalizado = d.timestamps?.finalizado?.toDate ? d.timestamps.finalizado.toDate() : null;
+
+        if (fechaFinalizado && fechaFinalizado >= fechaDesde && fechaFinalizado <= fechaHasta && d.estado === 'finalizado') {
             let tiempoAtencion = '-';
 
             let puntoInicio = d.timestamps.creado;
@@ -676,10 +658,11 @@ window.exportarProduccionPDF = async function() {
             }
 
             produccion.push({
-                fechaHora: formatearFechaHora(d.timestamps?.creado),
+                fechaFinalizado: fechaFinalizado,
+                fechaHoraStr: formatearFechaHora(d.timestamps?.finalizado),
                 numeroSolicitud: d.ocrData?.numeroSolicitud || '-',
-                dni: d.dniPaciente,
-                paciente: d.nombrePaciente,
+                dni: d.dniPaciente || '-',
+                paciente: d.nombrePaciente || '-',
                 servicio: d.servicio || '-',
                 numeroCama: d.numeroCama || '-',
                 tiempoAtencion: tiempoAtencion,
@@ -688,8 +671,13 @@ window.exportarProduccionPDF = async function() {
         }
     });
 
+    // Ordenar por fecha de finalización descendente (más reciente primero)
+    produccion.sort(function(a, b) {
+        return b.fechaFinalizado - a.fechaFinalizado;
+    });
+
     if (produccion.length === 0) {
-        alert('No hay atenciones atendidas en este rango de fechas');
+        alert('No hay atenciones finalizadas en este rango de fechas');
         return;
     }
 
@@ -701,8 +689,10 @@ window.exportarProduccionPDF = async function() {
     pdf.text('Periodo: ' + desdeInput + ' al ' + hastaInput, 14, 29);
     pdf.text('Total atenciones: ' + produccion.length, 14, 35);
 
-    const headers = ['Fecha/Hora', 'N° Solicitud', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
-    const data = produccion.map(p => [p.fechaHora, p.numeroSolicitud, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas]);
+    const headers = ['N°', 'Fecha/Hora Finalizado', 'N° Solicitud', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
+    const data = produccion.map(function(p, index) {
+        return [index + 1, p.fechaHoraStr, p.numeroSolicitud, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas];
+    });
 
     pdf.autoTable({
         head: [headers],
@@ -715,14 +705,14 @@ window.exportarProduccionPDF = async function() {
     });
 
     pdf.save('produccion_' + tecnologoNombre.replace(/\s+/g, '_') + '_' + desdeInput + '_' + hastaInput + '.pdf');
-};
+};;
 
 // ==================== FUNCIONES GLOBALES: EDITAR TECNÓLOGO ====================
 
 window.abrirModalEditarTecnologo = async function(id) {
     try {
         const docRef = doc(db, 'tecnologos', id);
-        const docSnap = await getDocFromServer(docRef);
+        const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) {
             alert('Tecnólogo Médico no encontrado');
             return;
@@ -762,22 +752,15 @@ window.guardarEdicionTecnologo = async function() {
     }
 };
 
-// ==================== ABRIR MODAL EDITAR SOLICITUD (CORREGIDO) ====================
 window.abrirModalEditarSolicitud = async function(id) {
     try {
-        const modal = document.getElementById('modalEditarSolicitud');
-        if (modal) modal.classList.add('active');
-
         const docRef = doc(db, 'solicitudes', id);
-        const docSnap = await getDocFromServer(docRef);
-
+        const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) {
             alert('Solicitud no encontrada');
-            if (modal) modal.classList.remove('active');
             return;
         }
         const data = docSnap.data();
-
         document.getElementById('editSolId').value = id;
         document.getElementById('editSolDNI').value = data.dniPaciente || '';
         document.getElementById('editSolNombre').value = data.nombrePaciente || '';
@@ -788,66 +771,50 @@ window.abrirModalEditarSolicitud = async function(id) {
         document.getElementById('editSolEstado').value = data.estado || 'pendiente';
         document.getElementById('editSolTecnologo').value = data.tecnologoAsignado || '';
 
+        // === NUEVO: Cargar campos de programación ===
         const esProgramadoCheckbox = document.getElementById('editSolEsProgramado');
         const horaProgramadaInput = document.getElementById('editSolHoraProgramada');
         const grupoHoraProgramada = document.getElementById('grupoEditSolHoraProgramada');
-
+        
         if (esProgramadoCheckbox) {
             esProgramadoCheckbox.checked = data.esProgramado || false;
         }
-
+        if (horaProgramadaInput && data.horaProgramada) {
+            const d = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+            horaProgramadaInput.value = d.toISOString().slice(0, 16);
+        } else if (horaProgramadaInput) {
+            horaProgramadaInput.value = '';
+        }
         if (grupoHoraProgramada) {
             grupoHoraProgramada.style.display = data.esProgramado ? 'block' : 'none';
-        }
-
-        if (horaProgramadaInput) {
-            if (data.horaProgramada) {
-                const d = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
-                const valorLocal = dateToLocalInputValue(d);
-                setDateTimeLocalValue(horaProgramadaInput, valorLocal);
-            } else {
-                setDateTimeLocalValue(horaProgramadaInput, '');
-            }
         }
 
         const toLocalInput = (ts) => {
             if (!ts) return '';
             const d = ts.toDate ? ts.toDate() : new Date(ts);
-            return dateToLocalInputValue(d);
+            return d.toISOString().slice(0, 16);
         };
+        document.getElementById('editSolCreado').value = toLocalInput(data.timestamps?.creado);
+        document.getElementById('editSolEnCamino').value = toLocalInput(data.timestamps?.enCamino);
+        document.getElementById('editSolFinalizado').value = toLocalInput(data.timestamps?.finalizado);
+        document.getElementById('editSolRechazado').value = toLocalInput(data.timestamps?.rechazado);
 
-        const creadoInput = document.getElementById('editSolCreado');
-        const enCaminoInput = document.getElementById('editSolEnCamino');
-        const finalizadoInput = document.getElementById('editSolFinalizado');
-        const rechazadoInput = document.getElementById('editSolRechazado');
-
-        if (creadoInput) setDateTimeLocalValue(creadoInput, toLocalInput(data.timestamps?.creado));
-        if (enCaminoInput) setDateTimeLocalValue(enCaminoInput, toLocalInput(data.timestamps?.enCamino));
-        if (finalizadoInput) setDateTimeLocalValue(finalizadoInput, toLocalInput(data.timestamps?.finalizado));
-        if (rechazadoInput) setDateTimeLocalValue(rechazadoInput, toLocalInput(data.timestamps?.rechazado));
-
+        document.getElementById('modalEditarSolicitud').classList.add('active');
     } catch (error) {
         alert('❌ Error: ' + error.message);
-        const modal = document.getElementById('modalEditarSolicitud');
-        if (modal) modal.classList.remove('active');
     }
 };
 
-// ==================== GUARDAR EDICIÓN SOLICITUD (CORREGIDO) ====================
 window.guardarEdicionSolicitud = async function() {
     const id = document.getElementById('editSolId').value;
     const creado = document.getElementById('editSolCreado').value;
     const enCamino = document.getElementById('editSolEnCamino').value;
     const finalizado = document.getElementById('editSolFinalizado').value;
     const rechazado = document.getElementById('editSolRechazado').value;
-
+    
+    // === NUEVO: Leer campos de programación ===
     const esProgramado = document.getElementById('editSolEsProgramado')?.checked || false;
     const horaProgramadaInput = document.getElementById('editSolHoraProgramada')?.value;
-
-    if (esProgramado && !horaProgramadaInput) {
-        alert('❌ Si marca la solicitud como Programada, debe ingresar la fecha y hora.');
-        return;
-    }
 
     const toTimestamp = (val) => val ? Timestamp.fromDate(new Date(val)) : null;
 
@@ -860,6 +827,7 @@ window.guardarEdicionSolicitud = async function() {
         notas: document.getElementById('editSolNotas').value.trim(),
         estado: document.getElementById('editSolEstado').value,
         tecnologoAsignado: document.getElementById('editSolTecnologo').value.trim() || null,
+        // === NUEVO: Campos de programación ===
         esProgramado: esProgramado,
         horaProgramada: esProgramado && horaProgramadaInput ? toTimestamp(horaProgramadaInput) : null,
         'timestamps.creado': toTimestamp(creado),
@@ -974,7 +942,7 @@ function calcularTiempoEfectivo(data) {
     if (data.esProgramado && data.horaProgramada) {
         puntoInicio = data.horaProgramada;
     }
-
+    
     if (!puntoInicio) return { efectivo: 0, total: 0, pausasTiempo: 0 };
 
     const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
@@ -1046,7 +1014,7 @@ window.cargarServiciosSelect = async function(selectId) {
 window.abrirModalEditarServicio = async function(id) {
     try {
         const docRef = doc(db, 'servicios', id);
-        const docSnap = await getDocFromServer(docRef);
+        const docSnap = await getDoc(docRef);
         if (!docSnap.exists()) {
             alert('Servicio no encontrado');
             return;
@@ -1123,10 +1091,16 @@ if (formSolicitud) {
             const archivoUrl = await subirArchivoCloudinary(file);
 
             const dni = document.getElementById('dniPaciente').value.trim();
-            const nombrePaciente = document.getElementById('nombrePaciente').value.trim();
-
-            if (dni && dni.length !== 8) {
+            if (!dni || dni.length !== 8) {
                 alert('❌ El DNI debe tener 8 dígitos');
+                btn.disabled = false;
+                btn.textContent = '➕ Registrar Solicitud';
+                return;
+            }
+
+            const nombrePaciente = document.getElementById('nombrePaciente').value.trim();
+            if (!nombrePaciente) {
+                alert('❌ El nombre del paciente es obligatorio');
                 btn.disabled = false;
                 btn.textContent = '➕ Registrar Solicitud';
                 return;
@@ -1148,12 +1122,13 @@ if (formSolicitud) {
                 horaProgramadaTimestamp = Timestamp.fromDate(fechaProgramada);
             }
 
+            // Datos extraídos por OCR (4 campos - sin examen)
             const numeroSolicitud = document.getElementById('numeroSolicitud').value.trim() || null;
             const numeroHistoria = document.getElementById('numeroHistoria').value.trim() || null;
 
             await addDoc(collection(db, 'solicitudes'), {
-                dniPaciente: dni || '',
-                nombrePaciente: nombrePaciente || '',
+                dniPaciente: dni,
+                nombrePaciente: nombrePaciente,
                 servicio: servicio,
                 numeroCama: document.getElementById('numeroCama').value.trim() || '',
                 solicitadoPor: document.getElementById('solicitadoPor').value.trim() || '',
@@ -1162,6 +1137,7 @@ if (formSolicitud) {
                 estado: 'pendiente',
                 esProgramado: esProgramado,
                 horaProgramada: horaProgramadaTimestamp,
+                // Datos OCR extraídos (4 campos - sin examen)
                 ocrData: {
                     numeroSolicitud: numeroSolicitud,
                     numeroHistoria: numeroHistoria,
@@ -1182,6 +1158,7 @@ if (formSolicitud) {
             formSolicitud.reset();
             document.getElementById('grupoHoraProgramada').style.display = 'none';
 
+            // Resetear estado OCR
             document.getElementById('uploadPlaceholder').style.display = 'block';
             document.getElementById('uploadPreview').style.display = 'none';
             document.getElementById('ocrResultado').style.display = 'none';
@@ -1191,18 +1168,18 @@ if (formSolicitud) {
             document.getElementById('numeroHistoria').value = '';
             document.getElementById('dniPaciente').value = '';
             document.getElementById('nombrePaciente').value = '';
-            document.getElementById('numeroSolicitud').disabled = false;
-            document.getElementById('numeroHistoria').disabled = false;
-            document.getElementById('dniPaciente').disabled = false;
-            document.getElementById('nombrePaciente').disabled = false;
-            document.getElementById('btnRegistrar').disabled = false;
-            document.getElementById('hintSolicitud').textContent = 'Extraído por OCR o ingrese manualmente';
+            document.getElementById('numeroSolicitud').disabled = true;
+            document.getElementById('numeroHistoria').disabled = true;
+            document.getElementById('dniPaciente').disabled = true;
+            document.getElementById('nombrePaciente').disabled = true;
+            document.getElementById('btnRegistrar').disabled = true;
+            document.getElementById('hintSolicitud').textContent = 'Esperando PDF...';
             document.getElementById('hintSolicitud').className = 'field-hint';
-            document.getElementById('hintHistoria').textContent = 'Extraído por OCR o ingrese manualmente';
+            document.getElementById('hintHistoria').textContent = 'Esperando PDF...';
             document.getElementById('hintHistoria').className = 'field-hint';
-            document.getElementById('hintDNI').textContent = 'Extraído por OCR o ingrese manualmente';
+            document.getElementById('hintDNI').textContent = 'Esperando PDF...';
             document.getElementById('hintDNI').className = 'field-hint';
-            document.getElementById('hintNombre').textContent = 'Extraído por OCR o ingrese manualmente';
+            document.getElementById('hintNombre').textContent = 'Esperando PDF...';
             document.getElementById('hintNombre').className = 'field-hint';
 
             hablar('Tu solicitud ha sido registrada con exito');
@@ -1227,10 +1204,12 @@ const contadorResultados = document.getElementById('contadorResultados');
 const btnLimpiar = document.getElementById('btnLimpiar');
 const filtroServicio = document.getElementById('filtroServicio');
 
+// Cargar servicios en el filtro
 if (filtroServicio) {
     cargarServiciosSelect('filtroServicio');
 }
 
+// Función para aplicar filtros
 async function buscarSolicitudes() {
     if (!resultadoConsulta) return;
 
@@ -1244,7 +1223,9 @@ async function buscarSolicitudes() {
     resultadosSection.style.display = 'block';
 
     try {
+        // Query base ordenada por fecha
         let q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
+
         const snapshot = await getDocs(q);
         let solicitudes = [];
 
@@ -1252,21 +1233,26 @@ async function buscarSolicitudes() {
             const data = docSnap.data();
             const id = docSnap.id;
 
+            // Filtro por DNI (exacto)
             if (dniFiltro && data.dniPaciente !== dniFiltro) return;
 
+            // Filtro por Nombre (búsqueda parcial, case-insensitive)
             if (nombreFiltro) {
                 const nombreUpper = (data.nombrePaciente || '').toUpperCase();
                 if (!nombreUpper.includes(nombreFiltro)) return;
             }
 
+            // Filtro por Servicio
             if (servicioFiltro && data.servicio !== servicioFiltro) return;
 
+            // Filtro por Fecha Desde
             if (fechaDesde && data.timestamps?.creado) {
                 const fechaCreado = data.timestamps.creado.toDate();
                 const fechaDesdeObj = new Date(fechaDesde + 'T00:00:00');
                 if (fechaCreado < fechaDesdeObj) return;
             }
 
+            // Filtro por Fecha Hasta
             if (fechaHasta && data.timestamps?.creado) {
                 const fechaCreado = data.timestamps.creado.toDate();
                 const fechaHastaObj = new Date(fechaHasta + 'T23:59:59');
@@ -1276,8 +1262,10 @@ async function buscarSolicitudes() {
             solicitudes.push({ id, data });
         });
 
+        // Actualizar contador
         contadorResultados.textContent = solicitudes.length + ' encontrado' + (solicitudes.length !== 1 ? 's' : '');
 
+        // Renderizar resultados
         if (solicitudes.length === 0) {
             resultadoConsulta.innerHTML = '<div class="consulta-empty"><div class="consulta-empty-icon">😕</div><p>No se encontraron solicitudes con esos filtros</p></div>';
             return;
@@ -1350,6 +1338,7 @@ async function buscarSolicitudes() {
     }
 }
 
+// Eventos
 if (formConsulta) {
     formConsulta.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -1370,6 +1359,7 @@ if (btnLimpiar) {
     });
 }
 
+// Búsqueda automática si hay DNI en URL (compatibilidad)
 const urlParams = new URLSearchParams(window.location.search);
 const dniFromUrl = urlParams.get('dni');
 if (dniFromUrl) {
@@ -1421,12 +1411,12 @@ if (formLogin) {
 
 // ==================== PAGINA: DASHBOARD ====================
 
-// ✅ UNIFICADO: detecta tanto dashboard como admin
-const listaCards = document.getElementById('listaSolicitudes') || document.getElementById('listaSolicitudesAdmin');
+const listaCards = document.getElementById('listaSolicitudes');
 let estadoFiltro = 'pendiente';
 let fechaFiltro = '';
 let solicitudesAnteriores = new Set();
 
+// === NUEVO: crearCardSolicitud con clasificación Programado Pendiente ===
 function crearCardSolicitud(sol) {
     const id = sol.id;
     const data = sol.data;
@@ -1436,7 +1426,8 @@ function crearCardSolicitud(sol) {
     let acciones = '';
     let estadoBadge = '';
     let indicadorProgramado = '';
-
+    
+    // === NUEVO: Determinar si es programado pendiente (futuro > 2h) ===
     const ahora = new Date();
     let esProgramadoPendiente = false;
     if (data.estado === 'pendiente' && data.esProgramado && data.horaProgramada) {
@@ -1444,7 +1435,7 @@ function crearCardSolicitud(sol) {
         const dosHoras = 2 * 60 * 60 * 1000;
         esProgramadoPendiente = horaProg > new Date(ahora.getTime() + dosHoras);
     }
-
+    
     if (data.esProgramado && data.horaProgramada) {
         const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
         const horaProgStr = horaProg.toLocaleString('es-PE', {
@@ -1452,7 +1443,7 @@ function crearCardSolicitud(sol) {
         });
         indicadorProgramado = '<span class="badge-programado">⏰ Programado: ' + horaProgStr + '</span>';
     }
-
+    
     let historialNotasHTML = '';
     if (data.historialNotas && data.historialNotas.length > 0) {
         historialNotasHTML = '<div class="historial-notas"><h4>📝 Registro de eventos:</h4>';
@@ -1461,55 +1452,14 @@ function crearCardSolicitud(sol) {
         });
         historialNotasHTML += '</div>';
     }
-
-    const esAdmin = localStorage.getItem('rol') === 'admin';
-
-    if (esAdmin) {
-        // ==================== ACCIONES DE ADMIN ====================
-        acciones = '<button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
-        acciones += '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
-        if (data.estado !== 'pendiente') {
-            acciones += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
-        }
-        acciones += '<button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
-
-        if (data.estado === 'rechazado' && data.motivoRechazo) {
-            acciones += '<p class="motivo" style="color:#d32f2f;margin-top:8px;"><strong>Motivo:</strong> ' + data.motivoRechazo + '</p>';
-        }
-
-        // Trazabilidad para finalizados (igual que dashboard usuario)
-        if (data.estado === 'finalizado') {
-            let lineasTiempo = [];
-            if (data.timestamps?.creado) lineasTiempo.push('📋 Registro: ' + formatearFechaHora(data.timestamps.creado));
-            if (data.timestamps?.enCamino) lineasTiempo.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
-            if (data.pausas && data.pausas.length > 0) {
-                data.pausas.forEach((p, idx) => {
-                    const inicio = p.inicio ? formatearFechaHora(p.inicio) : '-';
-                    const fin = p.reinicioReal ? formatearFechaHora(p.reinicioReal) : (p.reinicioProgramado ? formatearFechaHora(p.reinicioProgramado) + ' (prog)' : '...');
-                    lineasTiempo.push('⏸️ Pausa ' + (idx + 1) + ': ' + inicio + ' → ' + fin);
-                });
-            }
-            if (data.timestamps?.finalizado) lineasTiempo.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
-
-            const tiemposCalc = calcularTiempoEfectivo(data);
-            const tiempoTotal = tiemposCalc.efectivo > 0 
-                ? '<strong style="color:#2e7d32;">⏱️ Tiempo total: ' + formatearTiempoHHMMSS(tiemposCalc.efectivo) + '</strong>'
-                : '';
-
-            let trazabilidadHTML = '';
-            if (lineasTiempo.length > 0) {
-                trazabilidadHTML = '<div style="background:#e8f5e9;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;line-height:1.6;">';
-                trazabilidadHTML += lineasTiempo.join('<br>');
-                if (tiempoTotal) trazabilidadHTML += '<br>' + tiempoTotal;
-                trazabilidadHTML += '</div>';
-            }
-            acciones += trazabilidadHTML;
-        }
-    } else if (data.estado === 'pendiente') {
+    
+    if (data.estado === 'pendiente') {
         if (esProgramadoPendiente) {
+            // === NUEVO: Programado Pendiente (no urgente, futuro > 2h) ===
             estadoBadge = '<span class="estado-badge programado-pendiente">⏰ PROGRAMADO</span>';
             acciones = '<button onclick="cambiarEstado(\'' + id + '\', \'en_camino\')" class="btn-action camino">🚶 ATENDER AHORA</button><button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
         } else {
+            // Pendiente Urgente (normal o programado próximo)
             estadoBadge = '<span class="estado-badge pendiente">⏳ PENDIENTE</span>';
             acciones = '<button onclick="cambiarEstado(\'' + id + '\', \'en_camino\')" class="btn-action camino">🚶 EN CAMINO</button><button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
         }
@@ -1527,7 +1477,8 @@ function crearCardSolicitud(sol) {
         acciones = '<button onclick="revertirRechazo(\'' + id + '\')" class="btn-action revertir">↩️ REVERTIR</button><p class="motivo">Motivo: ' + (data.motivoRechazo || 'No especificado') + '</p>';
     } else if (data.estado === 'finalizado') {
         estadoBadge = '<span class="estado-badge finalizado">✅ ATENDIDO</span>';
-
+        
+        // === Trazabilidad de tiempos en cards finalizados ===
         let lineasTiempo = [];
         if (data.timestamps?.creado) lineasTiempo.push('📋 Registro: ' + formatearFechaHora(data.timestamps.creado));
         if (data.timestamps?.enCamino) lineasTiempo.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
@@ -1539,12 +1490,12 @@ function crearCardSolicitud(sol) {
             });
         }
         if (data.timestamps?.finalizado) lineasTiempo.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
-
+        
         const tiemposCalc = calcularTiempoEfectivo(data);
         const tiempoTotal = tiemposCalc.efectivo > 0 
             ? '<strong style="color:#2e7d32;">⏱️ Tiempo total: ' + formatearTiempoHHMMSS(tiemposCalc.efectivo) + '</strong>'
             : '';
-
+        
         let trazabilidadHTML = '';
         if (lineasTiempo.length > 0) {
             trazabilidadHTML = '<div style="background:#e8f5e9;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;line-height:1.6;">';
@@ -1552,10 +1503,15 @@ function crearCardSolicitud(sol) {
             if (tiempoTotal) trazabilidadHTML += '<br>' + tiempoTotal;
             trazabilidadHTML += '</div>';
         }
-
+        
         acciones = '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action kanteron">🔍 Kanteron PACS</button>' + trazabilidadHTML;
     }
-
+    
+    let adminBotones = '';
+    if (localStorage.getItem('rol') === 'admin') {
+        adminBotones = '<div style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;"><button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button><button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button></div>';
+    }
+    
     let servicioHTML = '';
     if (data.servicio) {
         servicioHTML = '<div class="info-row"><span>🏥 ' + data.servicio + '</span>';
@@ -1564,33 +1520,29 @@ function crearCardSolicitud(sol) {
     } else if (data.numeroCama) {
         servicioHTML = '<div class="info-row"><span>🛏️ ' + data.numeroCama + '</span></div>';
     }
-
+    
     let archivoHTML = '';
     if (data.archivoSolicitud) {
         const tipoArchivo = data.esPDF ? '📄 PDF' : '📷 Foto';
         archivoHTML = '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + tipoArchivo + ' - Ver solicitud</a></div>';
     }
-
-    let datosIncompletosBadge = '';
-    if (!data.dniPaciente || !data.nombrePaciente || !data.ocrData?.numeroSolicitud) {
-        datosIncompletosBadge = '<span style="background:#fff3e0;color:#e65100;padding:2px 10px;border-radius:12px;font-size:10px;margin-left:8px;">⚠️ Datos OCR incompletos</span>';
-    }
-
+    
+    // === NUEVO: CSS class para programados pendientes ===
     let cardClass = 'solicitud-card-v2 ' + alerta;
     if (esProgramadoPendiente) cardClass += ' programado-pendiente-card';
-
-    return '<div class="' + cardClass + '" id="card-' + id + '"><div class="card-header"><div class="card-titulo"><strong>' + (data.nombrePaciente || '-') + '</strong><span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>' + indicadorProgramado + datosIncompletosBadge + '</div>' + estadoBadge + '</div><div class="card-info"><div class="info-row"><span>🕐 ' + fechaHora + '</span><span class="tiempo">⏱️ ' + tiempo + '</span></div>' + servicioHTML + '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>' + (data.notas ? '<div class="info-row notas">📝 ' + data.notas + '</div>' : '') + '</div>' + archivoHTML + '<div class="card-actions">' + acciones + historialNotasHTML + '</div></div>';
+    
+    return '<div class="' + cardClass + '" id="card-' + id + '"><div class="card-header"><div class="card-titulo"><strong>' + (data.nombrePaciente || '-') + '</strong><span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>' + indicadorProgramado + '</div>' + estadoBadge + '</div><div class="card-info"><div class="info-row"><span>🕐 ' + fechaHora + '</span><span class="tiempo">⏱️ ' + tiempo + '</span></div>' + servicioHTML + '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>' + (data.notas ? '<div class="info-row notas">📝 ' + data.notas + '</div>' : '') + '</div>' + archivoHTML + '<div class="card-actions">' + acciones + historialNotasHTML + adminBotones + '</div></div>';
 }
 
 let unsubscribe = null;
 
+// === NUEVO: cargarSolicitudes con 5 contadores y clasificación programado_pendiente ===
 function cargarSolicitudes() {
     if (unsubscribe) unsubscribe();
     const q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
     unsubscribe = onSnapshot(q, (snapshot) => {
         let html = '';
         let counts = { 
-            todos: 0,
             pendiente: 0, 
             programado_pendiente: 0,
             en_camino: 0, 
@@ -1599,31 +1551,32 @@ function cargarSolicitudes() {
         };
         let nuevasSolicitudes = 0;
 
+        // === Contar TODOS primero, antes del filtro ===
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const ahora = new Date();
-
-            counts.todos++;
-
+            
+            // === NUEVO: Clasificar programados vs urgentes ===
             let estadoClasificado = data.estado;
             if (data.estado === 'pendiente') {
                 if (data.esProgramado && data.horaProgramada) {
                     const horaProg = data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
                     const dosHoras = 2 * 60 * 60 * 1000;
                     if (horaProg <= new Date(ahora.getTime() + dosHoras)) {
-                        estadoClasificado = 'pendiente';
+                        estadoClasificado = 'pendiente'; // Ya es hora o casi → URGENTE
                     } else {
-                        estadoClasificado = 'programado_pendiente';
+                        estadoClasificado = 'programado_pendiente'; // Futuro → Programado
                     }
                 } else {
-                    estadoClasificado = 'pendiente';
+                    estadoClasificado = 'pendiente'; // No programado → URGENTE
                 }
             }
-
+            
+            // Contadores globales (sin filtros)
             if (counts[estadoClasificado] !== undefined) counts[estadoClasificado]++;
-
-            const esAdmin = localStorage.getItem('rol') === 'admin';
-            if (!esAdmin && data.estado === 'pendiente' && !data.esProgramado && !solicitudesAnteriores.has(docSnap.id)) {
+            
+            // Notificaciones solo para nuevas pendientes URGENTES (no programados)
+            if (data.estado === 'pendiente' && !data.esProgramado && !solicitudesAnteriores.has(docSnap.id)) {
                 nuevasSolicitudes++;
                 mostrarNotificacionCompleta(
                     '🚨 Nueva Solicitud Rx Portatil',
@@ -1634,24 +1587,25 @@ function cargarSolicitudes() {
             }
         });
 
-        const countTodos = document.getElementById('countTodos');
+        // === NUEVO: Actualizar 5 contadores en UI ===
         const countPendiente = document.getElementById('countPendiente');
         const countProgramado = document.getElementById('countProgramado');
         const countEnCamino = document.getElementById('countEnCamino');
         const countRechazado = document.getElementById('countRechazado');
         const countFinalizado = document.getElementById('countFinalizado');
-
-        if (countTodos) countTodos.textContent = counts.todos;
+        
         if (countPendiente) countPendiente.textContent = counts.pendiente;
         if (countProgramado) countProgramado.textContent = counts.programado_pendiente;
         if (countEnCamino) countEnCamino.textContent = counts.en_camino;
         if (countRechazado) countRechazado.textContent = counts.rechazado;
         if (countFinalizado) countFinalizado.textContent = counts.finalizado;
 
+        // === Ahora aplicar filtros solo para renderizar cards ===
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const ahora = new Date();
-
+            
+            // === NUEVO: Determinar estado clasificado para filtro ===
             let estadoClasificado = data.estado;
             if (data.estado === 'pendiente') {
                 if (data.esProgramado && data.horaProgramada) {
@@ -1666,14 +1620,16 @@ function cargarSolicitudes() {
                     estadoClasificado = 'pendiente';
                 }
             }
-
+            
+            // Filtro de estado
             if (estadoFiltro !== 'todos' && estadoClasificado !== estadoFiltro) return;
-
+            
+            // Filtro de fecha
             if (fechaFiltro && data.timestamps?.creado) {
                 const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
                 if (fechaDoc !== fechaFiltro) return;
             }
-
+            
             html += crearCardSolicitud({ id: docSnap.id, data });
             solicitudesAnteriores.add(docSnap.id);
         });
@@ -1698,26 +1654,21 @@ if (listaCards) {
             cargarSolicitudes();
         });
     }
-
-    const esAdmin = localStorage.getItem('rol') === 'admin';
-    if (!esAdmin) {
-        solicitarPermisoNotificaciones().then(permitido => {
-            if (permitido) {
-                console.log('Notificaciones activadas automaticamente');
-            } else {
-                console.log('Notificaciones no permitidas por el usuario');
-            }
-        });
-    }
-
+    // Solicitar permiso de notificaciones automaticamente al cargar el dashboard
+    solicitarPermisoNotificaciones().then(permitido => {
+        if (permitido) {
+            console.log('Notificaciones activadas automaticamente');
+        } else {
+            console.log('Notificaciones no permitidas por el usuario');
+        }
+    });
     cargarSolicitudes();
 
-    if (!esAdmin) {
-        setInterval(() => {
-            console.log('Recargando dashboard automaticamente (15 minutos)');
-            window.location.reload();
-        }, 900000);
-    }
+    // Recargar dashboard automaticamente cada 15 minutos para mantener datos frescos
+    setInterval(() => {
+        console.log('Recargando dashboard automaticamente (15 minutos)');
+        window.location.reload();
+    }, 900000); // 15 minutos = 900,000 ms
 }
 
 // ==================== PAGINA: ADMIN ====================
@@ -1728,6 +1679,7 @@ if (formCrearTecnologo) {
         alert('Acceso denegado');
         window.location.href = 'index.html';
     }
+    // Formulario crear servicio
     const formCrearServicio = document.getElementById('formCrearServicio');
     if (formCrearServicio) {
         formCrearServicio.addEventListener('submit', async (e) => {
@@ -1805,6 +1757,7 @@ if (formCrearTecnologo) {
         const select = document.getElementById('tecnologoFiltro');
         if (!select) return;
         try {
+            // Sin orderBy para evitar que documentos sin 'nombre' sean excluidos
             const snapshot = await getDocs(collection(db, 'tecnologos'));
             console.log('=== DIAGNÓSTICO TECNÓLOGOS ===');
             console.log('Total documentos en colección tecnologos:', snapshot.size);
@@ -1818,6 +1771,7 @@ if (formCrearTecnologo) {
                 }
             });
 
+            // Ordenar manualmente por nombre
             tecnologos.sort((a, b) => a.nombre.localeCompare(b.nombre));
 
             console.log('Tecnólogos con nombre válido:', tecnologos.length);
@@ -1836,27 +1790,136 @@ if (formCrearTecnologo) {
     cargarTecnologosSelect();
 }
 
-// ==================== ADMIN: GESTION DE SOLICITUDES (DEPRECADO - ahora usa cargarSolicitudes) ====================
-/*
-window.cargarSolicitudesAdmin = function() { ... };
-*/
+// ==================== ADMIN: GESTION DE SOLICITUDES ====================
 
-// Ya no se llama cargarSolicitudesAdmin() porque el admin ahora usa la misma vista que el dashboard
-// if (document.getElementById('listaSolicitudesAdmin')) {
-//     cargarSolicitudesAdmin();
-// }
-
-// ==================== LISTENER: Mostrar/ocultar hora programada en modal de edición ====================
-document.addEventListener('DOMContentLoaded', () => {
-    const chk = document.getElementById('editSolEsProgramado');
-    const grupo = document.getElementById('grupoEditSolHoraProgramada');
-    if (chk && grupo) {
-        chk.addEventListener('change', function() {
-            grupo.style.display = this.checked ? 'block' : 'none';
-            if (!this.checked) {
-                const inputHora = document.getElementById('editSolHoraProgramada');
-                if (inputHora) inputHora.value = '';
-            }
-        });
+window.cargarSolicitudesAdmin = function() {
+    const filtro = document.getElementById('filtroEstadoAdmin').value;
+    const contenedor = document.getElementById('listaSolicitudesAdmin');
+    if (!contenedor) return;
+    let q;
+    if (filtro === 'todos') {
+        q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
+    } else {
+        q = query(collection(db, 'solicitudes'), where('estado', '==', filtro), orderBy('timestamps.creado', 'desc'));
     }
-});
+    onSnapshot(q, (snapshot) => {
+        if (snapshot.empty) {
+            contenedor.innerHTML = '<p class="empty">No hay solicitudes</p>';
+            return;
+        }
+        let html = '';
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            const id = docSnap.id;
+            const estadosLabels = {
+                'pendiente': '⏳ Pendiente',
+                'en_camino': '🚶 En camino',
+                'rechazado': '❌ No atendido',
+                'finalizado': '✅ Atendido'
+            };
+            
+            // === NUEVO: Calcular tiempo de atención para finalizados ===
+            let tiempoInfo = '';
+            if (data.estado === 'finalizado' && data.timestamps?.creado && data.timestamps?.finalizado) {
+                const tiempos = calcularTiempoEfectivo(data);
+                tiempoInfo = '<div style="background:#e8f5e9;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;">';
+                tiempoInfo += '<strong style="color:#2e7d32;">⏱️ Tiempo total: ' + formatearTiempoHHMMSS(tiempos.efectivo) + '</strong>';
+                if (tiempos.pausasTiempo > 0) {
+                    tiempoInfo += ' (+' + formatearTiempoHHMMSS(tiempos.pausasTiempo) + ' en pausas)';
+                }
+                tiempoInfo += '</div>';
+            }
+            
+            // === NUEVO: Trazabilidad de estados con timestamps ===
+            let trazabilidadHTML = '';
+            let estadosLines = [];
+            if (data.timestamps?.creado) {
+                estadosLines.push('📋 Registrado: ' + formatearFechaHora(data.timestamps.creado));
+            }
+            if (data.timestamps?.enCamino) {
+                estadosLines.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
+            }
+            if (data.pausas && data.pausas.length > 0) {
+                data.pausas.forEach((p, idx) => {
+                    const inicio = p.inicio ? formatearFechaHora(p.inicio) : '-';
+                    const fin = p.reinicioReal ? formatearFechaHora(p.reinicioReal) : (p.reinicioProgramado ? formatearFechaHora(p.reinicioProgramado) + ' (prog)' : '...');
+                    estadosLines.push('⏸️ Pausa ' + (idx + 1) + ': ' + inicio + ' → ' + fin);
+                });
+            }
+            if (data.timestamps?.finalizado) {
+                estadosLines.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
+            }
+            if (data.timestamps?.rechazado) {
+                estadosLines.push('❌ Rechazado: ' + formatearFechaHora(data.timestamps.rechazado));
+            }
+            if (estadosLines.length > 0) {
+                trazabilidadHTML = '<div style="background:#f0f7ff;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;line-height:1.6;">';
+                trazabilidadHTML += '<strong style="color:#1a5276;">📊 Trazabilidad:</strong><br>';
+                trazabilidadHTML += estadosLines.join('<br>');
+                trazabilidadHTML += '</div>';
+            }
+            
+            // === NUEVO: Historial de notas de tecnólogos ===
+            let notasHTML = '';
+            if (data.historialNotas && data.historialNotas.length > 0) {
+                notasHTML = '<div style="background:#fff8f0;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;">';
+                notasHTML += '<strong style="color:#e65100;">📝 Notas de Tecnólogos (' + data.historialNotas.length + '):</strong><br>';
+                data.historialNotas.forEach((nota, idx) => {
+                    notasHTML += '<div style="border-left:2px solid #ff9800;padding-left:8px;margin:4px 0;">';
+                    notasHTML += '<span style="color:#666;font-size:11px;">📅 ' + nota.fecha + ' | 👤 ' + nota.tecnologo + '</span><br>';
+                    notasHTML += '<span style="color:#333;">' + nota.texto + '</span>';
+                    notasHTML += '</div>';
+                });
+                notasHTML += '</div>';
+            }
+            
+            const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
+                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+            }) || '-';
+            
+            html += '<div class="solicitud-card-v2" style="border-left: 4px solid #1a5276;">';
+            html += '<div class="card-header">';
+            html += '<div class="card-titulo">';
+            html += '<strong>' + (data.nombrePaciente || '-') + '</strong>';
+            html += '<span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>';
+            if (data.servicio) {
+                html += '<span class="servicio-badge">🏥 ' + data.servicio + '</span>';
+            }
+            if (data.numeroCama) {
+                html += '<span class="servicio-badge">🛏️ ' + data.numeroCama + '</span>';
+            }
+            html += '</div>';
+            html += '<span class="estado-badge ' + data.estado + '">' + estadosLabels[data.estado] + '</span>';
+            html += '</div>';
+            html += '<div class="card-info">';
+            html += '<div class="info-row"><span>🕐 ' + fecha + '</span></div>';
+            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
+            if (data.motivoRechazo) {
+                html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
+            }
+            html += '</div>';
+            
+            // === NUEVO: Insertar tiempo, trazabilidad y notas ===
+            html += tiempoInfo;
+            html += trazabilidadHTML;
+            html += notasHTML;
+            
+            if (data.archivoSolicitud) {
+                const esPDF = data.esPDF ? '📄 PDF' : '📷 Foto';
+                html += '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + esPDF + ' - Ver solicitud</a></div>';
+            }
+            html += '<div class="admin-actions">';
+            html += '<button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
+            html += '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
+            html += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
+            html += '<button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
+            html += '</div>';
+            html += '</div>';
+        });
+        contenedor.innerHTML = html;
+    });
+};
+
+if (document.getElementById('listaSolicitudesAdmin')) {
+    cargarSolicitudesAdmin();
+}
