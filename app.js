@@ -640,27 +640,29 @@ window.exportarProduccionPDF = async function() {
     let produccion = [];
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
-        const fechaCreado = d.timestamps?.creado?.toDate();
-        if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta && d.estado === 'finalizado') {
+        const fechaFinalizado = d.timestamps?.finalizado?.toDate ? d.timestamps.finalizado.toDate() : null;
+
+        if (fechaFinalizado && fechaFinalizado >= fechaDesde && fechaFinalizado <= fechaHasta && d.estado === 'finalizado') {
             let tiempoAtencion = '-';
-            
+
             let puntoInicio = d.timestamps.creado;
             if (d.esProgramado && d.horaProgramada) {
                 puntoInicio = d.horaProgramada;
             }
-            
+
             if (puntoInicio && d.timestamps.finalizado) {
                 const inicio = puntoInicio.toDate ? puntoInicio.toDate() : new Date(puntoInicio);
                 const fin = d.timestamps.finalizado.toDate ? d.timestamps.finalizado.toDate() : new Date(d.timestamps.finalizado);
                 const diffSeg = (fin - inicio) / 1000;
                 tiempoAtencion = formatearTiempoHHMMSS(diffSeg);
             }
-            
+
             produccion.push({
-                fechaHora: formatearFechaHora(d.timestamps?.creado),
+                fechaFinalizado: fechaFinalizado,
+                fechaHoraStr: formatearFechaHora(d.timestamps?.finalizado),
                 numeroSolicitud: d.ocrData?.numeroSolicitud || '-',
-                dni: d.dniPaciente,
-                paciente: d.nombrePaciente,
+                dni: d.dniPaciente || '-',
+                paciente: d.nombrePaciente || '-',
                 servicio: d.servicio || '-',
                 numeroCama: d.numeroCama || '-',
                 tiempoAtencion: tiempoAtencion,
@@ -669,8 +671,13 @@ window.exportarProduccionPDF = async function() {
         }
     });
 
+    // Ordenar por fecha de finalización descendente (más reciente primero)
+    produccion.sort(function(a, b) {
+        return b.fechaFinalizado - a.fechaFinalizado;
+    });
+
     if (produccion.length === 0) {
-        alert('No hay atenciones atendidas en este rango de fechas');
+        alert('No hay atenciones finalizadas en este rango de fechas');
         return;
     }
 
@@ -682,8 +689,10 @@ window.exportarProduccionPDF = async function() {
     pdf.text('Periodo: ' + desdeInput + ' al ' + hastaInput, 14, 29);
     pdf.text('Total atenciones: ' + produccion.length, 14, 35);
 
-    const headers = ['Fecha/Hora', 'N° Solicitud', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
-    const data = produccion.map(p => [p.fechaHora, p.numeroSolicitud, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas]);
+    const headers = ['N°', 'Fecha/Hora Finalizado', 'N° Solicitud', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
+    const data = produccion.map(function(p, index) {
+        return [index + 1, p.fechaHoraStr, p.numeroSolicitud, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas];
+    });
 
     pdf.autoTable({
         head: [headers],
@@ -696,7 +705,7 @@ window.exportarProduccionPDF = async function() {
     });
 
     pdf.save('produccion_' + tecnologoNombre.replace(/\s+/g, '_') + '_' + desdeInput + '_' + hastaInput + '.pdf');
-};
+};;
 
 // ==================== FUNCIONES GLOBALES: EDITAR TECNÓLOGO ====================
 
