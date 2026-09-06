@@ -673,7 +673,7 @@ window.exportarProduccionPDF = async function() {
 
     // Ordenar por fecha de finalización descendente (más reciente primero)
     produccion.sort(function(a, b) {
-        return b.fechaFinalizado - a.fechaFinalizado;
+        return a.fechaFinalizado - b.fechaFinalizado;
     });
 
     if (produccion.length === 0) {
