@@ -1321,7 +1321,7 @@ async function buscarSolicitudes() {
             html += '<span>🏥 ' + (data.servicio || '-') + '</span>';
             html += '<span>🛏️ ' + (data.numeroCama || '-') + '</span>';
             html += '<span>🙋 ' + (data.solicitadoPor || '-') + '</span>';
-            html += '<span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span>';
+            html += '<span>☢️ ' + (data.tecnologoAsignado || 'Sin asignar') + '</span>';
             html += '<span>🕐 ' + formatearFechaHora(data.timestamps?.creado) + '</span>';
             if (infoProgramado) html += infoProgramado;
             html += '</div>';
