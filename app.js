@@ -689,7 +689,7 @@ window.exportarProduccionPDF = async function() {
     pdf.text('Periodo: ' + desdeInput + ' al ' + hastaInput, 14, 29);
     pdf.text('Total atenciones: ' + produccion.length, 14, 35);
 
-    const headers = ['N°', 'Fecha/Hora Finalizado', 'N° Solicitud', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo', 'Notas'];
+    const headers = ['N°', 'Fecha/Hora Finalizado', 'N° Solicitud', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Tiempo de atencion', 'Notas'];
     const data = produccion.map(function(p, index) {
         return [index + 1, p.fechaHoraStr, p.numeroSolicitud, p.dni, p.paciente, p.servicio, p.numeroCama, p.tiempoAtencion, p.notas];
     });
