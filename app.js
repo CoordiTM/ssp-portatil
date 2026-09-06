@@ -1901,10 +1901,10 @@ window.cargarSolicitudesAdmin = function() {
                 html += '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + esPDF + ' - Ver solicitud</a></div>';
             }
             html += '<div class="admin-actions">';
-            html += '<button onclick="abrirModalEditarSolicitud('' + id + '')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
+            html += '<button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
             html += '<button onclick="abrirKanteron('' + (data.dniPaciente || '') + '')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
-            html += '<button onclick="revertirEstadoAdmin('' + id + '')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
-            html += '<button onclick="eliminarSolicitud('' + id + '')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
+            html += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
+            html += '<button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
             html += '</div>';
             html += '</div>';
         });
