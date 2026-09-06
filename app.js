@@ -1234,6 +1234,12 @@ async function buscarSolicitudes() {
             const data = docSnap.data();
             const id = docSnap.id;
 
+            // Filtro por fecha
+            if (fechaFiltroAdmin && data.timestamps?.creado) {
+                const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
+                if (fechaDoc !== fechaFiltroAdmin) return;
+            }
+
             // Filtro por DNI (exacto)
             if (dniFiltro && data.dniPaciente !== dniFiltro) return;
 
@@ -1793,18 +1799,47 @@ if (formCrearTecnologo) {
 
 // ==================== ADMIN: GESTION DE SOLICITUDES ====================
 
+window.filtrarEstadoAdmin = function(estado, fecha) {
+    if (estado !== null && estado !== undefined) {
+        estadoFiltroAdmin = estado;
+    }
+    if (fecha !== undefined) {
+        fechaFiltroAdmin = fecha;
+    }
+
+    // Actualizar botones activos
+    document.querySelectorAll('.filtro-admin-btn').forEach(btn => {
+        if (btn) btn.classList.remove('active');
+    });
+    if (estadoFiltroAdmin) {
+        const btnActivo = document.getElementById('btn-admin-' + estadoFiltroAdmin);
+        if (btnActivo) btnActivo.classList.add('active');
+    }
+
+    cargarSolicitudesAdmin();
+};
+
+// Variables globales para filtros del admin
+let estadoFiltroAdmin = 'todos';
+let fechaFiltroAdmin = '';
+let unsubscribeAdmin = null;
+
 window.cargarSolicitudesAdmin = function() {
-    const filtroElement = document.getElementById('filtroEstadoAdmin');
-    const filtro = filtroElement ? filtroElement.value : 'todos';
     const contenedor = document.getElementById('listaSolicitudesAdmin');
     if (!contenedor) return;
+
+    // Cancelar suscripción anterior
+    if (unsubscribeAdmin) unsubscribeAdmin();
+
+    // Construir query según filtro de estado
     let q;
-    if (filtro === 'todos') {
+    if (estadoFiltroAdmin === 'todos') {
         q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
     } else {
-        q = query(collection(db, 'solicitudes'), where('estado', '==', filtro), orderBy('timestamps.creado', 'desc'));
+        q = query(collection(db, 'solicitudes'), where('estado', '==', estadoFiltroAdmin), orderBy('timestamps.creado', 'desc'));
     }
-    onSnapshot(q, (snapshot) => {
+
+    unsubscribeAdmin = onSnapshot(q, (snapshot) => {
         if (snapshot.empty) {
             contenedor.innerHTML = '<p class="empty">No hay solicitudes</p>';
             return;
@@ -1912,7 +1947,7 @@ window.cargarSolicitudesAdmin = function() {
             }
             html += '<div class="admin-actions">';
             html += '<button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
-            html += '<button onclick="abrirKanteron('' + (data.dniPaciente || '') + '')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
+            html += '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
             html += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
             html += '<button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
             html += '</div>';

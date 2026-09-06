@@ -384,6 +384,7 @@
 <div class="header">
     <h1>🏥 Servicio de Radiodiagnóstico y Ecografía HNASS</h1>
     <p>Panel de Administración</p>
+        <a href="index.html" style="display:inline-block;margin-top:10px;padding:8px 16px;background:#1a5276;color:#fff;text-decoration:none;border-radius:6px;font-size:14px;">← Volver al inicio</a>
 </div>
 
 <div class="container">
@@ -392,16 +393,16 @@
     <div class="card">
         <h2>📊 Solicitudes</h2>
         <div class="filtros">
-            <button id="btn-todos" class="btn-filtro" onclick="filtrarEstado('todos')">📋 <span id="countTodos">0</span></button>
-            <button id="btn-pendiente" class="btn-filtro active" onclick="filtrarEstado('pendiente')">🔴 <span id="countPendiente">0</span></button>
-            <button id="btn-programado_pendiente" class="btn-filtro" onclick="filtrarEstado('programado_pendiente')">🕐 <span id="countProgramado">0</span></button>
-            <button id="btn-en_camino" class="btn-filtro" onclick="filtrarEstado('en_camino')">🚶 <span id="countEnCamino">0</span></button>
-            <button id="btn-rechazado" class="btn-filtro" onclick="filtrarEstado('rechazado')">❌ <span id="countRechazado">0</span></button>
-            <button id="btn-finalizado" class="btn-filtro" onclick="filtrarEstado('finalizado')">✅ <span id="countFinalizado">0</span></button>
+            <button id="btn-todos" class="btn-filtro" onclick="filtrarEstadoAdmin('todos')">📋 <span id="countTodos">0</span></button>
+            <button id="btn-pendiente" class="btn-filtro active" onclick="filtrarEstadoAdmin('pendiente')">🔴 <span id="countPendiente">0</span></button>
+            <button id="btn-programado_pendiente" class="btn-filtro" onclick="filtrarEstadoAdmin('programado_pendiente')">🕐 <span id="countProgramado">0</span></button>
+            <button id="btn-en_camino" class="btn-filtro" onclick="filtrarEstadoAdmin('en_camino')">🚶 <span id="countEnCamino">0</span></button>
+            <button id="btn-rechazado" class="btn-filtro" onclick="filtrarEstadoAdmin('rechazado')">❌ <span id="countRechazado">0</span></button>
+            <button id="btn-finalizado" class="btn-filtro" onclick="filtrarEstadoAdmin('finalizado')">✅ <span id="countFinalizado">0</span></button>
         </div>
         <div style="margin:10px 0;">
             <label style="font-size:0.85rem;font-weight:600;color:#555;">📅 Filtrar por fecha:</label>
-            <input type="date" id="fechaFiltro" style="padding:8px;border-radius:6px;border:1px solid #ddd;margin-left:8px;">
+            <input type="date" id="fechaFiltroAdmin" onchange="filtrarEstadoAdmin(null, this.value)" style="padding:8px;border-radius:6px;border:1px solid #ddd;margin-left:8px;">
         </div>
         <h3 id="tituloLista">🚨 Pendientes Urgentes</h3>
         <div id="listaSolicitudesAdmin"></div>
