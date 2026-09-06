@@ -1474,7 +1474,7 @@ function crearCardSolicitud(sol) {
         estadoBadge = '<span class="estado-badge camino">🚶 EN CAMINO</span>';
         if (data.estadoPausa === 'pausada' && data.pausas && data.pausas.length > 0) {
             const ultimaPausa = data.pausas[data.pausas.length - 1];
-            const horaProg = ultimaPausa.reinicioProgramado?.toDate ? ultimaPausa.reinicioProgramado.toDate().toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'}) : 'programada';
+            const horaProg = ultimaPausa.reinicioProgramado?.toDate ? ultimaPausa.reinicioProgramado.toDate().toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit', hour12: false}) : 'programada';
             acciones = '<button onclick="reiniciarAtencion(\'' + id + '\')" class="btn-action reiniciar">▶️ REINICIAR (regreso ' + horaProg + ')</button><button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
         } else {
             acciones = '<button onclick="mostrarNotasContingencia(\'' + id + '\')" class="btn-action notas">📝 NOTAS</button><button onclick="mostrarPausaAtencion(\'' + id + '\')" class="btn-action pausa">⏸️ PAUSAR</button><button onclick="cambiarEstado(\'' + id + '\', \'finalizado\')" class="btn-action finalizar">✅ FINALIZAR</button><button onclick="mostrarRechazo(\'' + id + '\')" class="btn-action rechazar">❌ NO ATENDER</button>';
@@ -1808,11 +1808,11 @@ window.filtrarEstadoAdmin = function(estado, fecha) {
     }
 
     // Actualizar botones activos
-    document.querySelectorAll('.filtro-admin-btn').forEach(btn => {
+    document.querySelectorAll('.btn-filtro').forEach(btn => {
         if (btn) btn.classList.remove('active');
     });
     if (estadoFiltroAdmin) {
-        const btnActivo = document.getElementById('btn-admin-' + estadoFiltroAdmin);
+        const btnActivo = document.getElementById('btn-' + estadoFiltroAdmin);
         if (btnActivo) btnActivo.classList.add('active');
     }
 
@@ -1831,23 +1831,58 @@ window.cargarSolicitudesAdmin = function() {
     // Cancelar suscripción anterior
     if (unsubscribeAdmin) unsubscribeAdmin();
 
-    // Construir query según filtro de estado
-    let q;
-    if (estadoFiltroAdmin === 'todos') {
-        q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
-    } else {
-        q = query(collection(db, 'solicitudes'), where('estado', '==', estadoFiltroAdmin), orderBy('timestamps.creado', 'desc'));
-    }
+    // Query base: todas las solicitudes ordenadas por fecha de creación
+    const q = query(collection(db, 'solicitudes'), orderBy('timestamps.creado', 'desc'));
 
     unsubscribeAdmin = onSnapshot(q, (snapshot) => {
+        // === CONTADORES POR ESTADO (siempre, sin importar el filtro) ===
+        let counts = { pendiente: 0, en_camino: 0, rechazado: 0, finalizado: 0 };
+
+        snapshot.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (counts[data.estado] !== undefined) {
+                counts[data.estado]++;
+            }
+        });
+
+        // Actualizar contadores en UI
+        const countPendiente = document.getElementById('countPendiente');
+        const countEnCamino = document.getElementById('countEnCamino');
+        const countRechazado = document.getElementById('countRechazado');
+        const countFinalizado = document.getElementById('countFinalizado');
+
+        if (countPendiente) countPendiente.textContent = counts.pendiente;
+        if (countEnCamino) countEnCamino.textContent = counts.en_camino;
+        if (countRechazado) countRechazado.textContent = counts.rechazado;
+        if (countFinalizado) countFinalizado.textContent = counts.finalizado;
+
+        const countProgramado = document.getElementById('countProgramado');
+        if (countProgramado) countProgramado.textContent = counts.programado_pendiente || 0;
+
+        // Total de solicitudes
+        const countTodos = document.getElementById('countTodos');
+        if (countTodos) countTodos.textContent = snapshot.size;
+
+        // === RENDERIZAR SOLICITUDES SEGÚN FILTRO ===
         if (snapshot.empty) {
             contenedor.innerHTML = '<p class="empty">No hay solicitudes</p>';
             return;
         }
+
         let html = '';
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const id = docSnap.id;
+
+            // Filtro por estado
+            if (estadoFiltroAdmin !== 'todos' && data.estado !== estadoFiltroAdmin) return;
+
+            // Filtro por fecha
+            if (fechaFiltroAdmin && data.timestamps?.creado) {
+                const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
+                if (fechaDoc !== fechaFiltroAdmin) return;
+            }
+
             const estadosLabels = {
                 'pendiente': '⏳ Pendiente',
                 'en_camino': '🚶 En camino',
@@ -1855,7 +1890,7 @@ window.cargarSolicitudesAdmin = function() {
                 'finalizado': '✅ Atendido'
             };
 
-            // === NUEVO: Calcular tiempo de atención para finalizados ===
+            // === Calcular tiempo de atención para finalizados ===
             let tiempoInfo = '';
             if (data.estado === 'finalizado' && data.timestamps?.creado && data.timestamps?.finalizado) {
                 const tiempos = calcularTiempoEfectivo(data);
@@ -1867,7 +1902,7 @@ window.cargarSolicitudesAdmin = function() {
                 tiempoInfo += '</div>';
             }
 
-            // === NUEVO: Trazabilidad de estados con timestamps ===
+            // === Trazabilidad de estados con timestamps ===
             let trazabilidadHTML = '';
             let estadosLines = [];
             if (data.timestamps?.creado) {
@@ -1896,7 +1931,7 @@ window.cargarSolicitudesAdmin = function() {
                 trazabilidadHTML += '</div>';
             }
 
-            // === NUEVO: Historial de notas de tecnólogos ===
+            // === Historial de notas de tecnólogos ===
             let notasHTML = '';
             if (data.historialNotas && data.historialNotas.length > 0) {
                 notasHTML = '<div style="background:#fff8f0;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;">';
@@ -1936,7 +1971,6 @@ window.cargarSolicitudesAdmin = function() {
             }
             html += '</div>';
 
-            // === NUEVO: Insertar tiempo, trazabilidad y notas ===
             html += tiempoInfo;
             html += trazabilidadHTML;
             html += notasHTML;
@@ -1953,9 +1987,12 @@ window.cargarSolicitudesAdmin = function() {
             html += '</div>';
             html += '</div>';
         });
-        contenedor.innerHTML = html;
+        contenedor.innerHTML = html || '<p class="empty">No hay solicitudes con este filtro</p>';
+    }, (error) => {
+        console.error('Error en admin:', error);
+        contenedor.innerHTML = '<p class="empty">❌ Error: ' + error.message + '</p>';
     });
-};;
+};;;
 
 if (document.getElementById('listaSolicitudesAdmin')) {
     cargarSolicitudesAdmin();
