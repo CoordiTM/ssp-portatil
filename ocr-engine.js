@@ -40,7 +40,7 @@ async function ejecutarOCR(canvas, onProgress) {
         }
     });
     await worker.setParameters({
-        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,;:-_/()',
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 .,;:-_/()ÑñÁÉÍÓÚáéíóúÜü',
         preserve_interword_spaces: '1'
     });
     const result = await worker.recognize(canvas);
@@ -96,16 +96,16 @@ function parsearDatosESSALUD(texto) {
     }
     
     // NOMBRES Y APELLIDOS
-    const matchNombres = textoUpper.match(/NOMBRE\s*Y\s*APELLIDOS\s*PACIENTE\s*([A-Z\s]{10,60}?)(?=\s*NRO|\s*DOCUMENTO|\s*TIPO|\s*HISTORIA|$)/);
+    const matchNombres = textoUpper.match(/NOMBRE\s*Y\s*APELLIDOS\s*PACIENTE\s*([A-ZÑÁÉÍÓÚ\s]{10,60}?)(?=\s*NRO|\s*DOCUMENTO|\s*TIPO|\s*HISTORIA|$)/);
     if (matchNombres) {
         datos.nombres = matchNombres[1].trim().replace(/\s+/g, ' ');
     } else {
         for (let i = 0; i < lineas.length; i++) {
             const lineaUpper = lineas[i].toUpperCase();
-            if (/NOMBRE\s*Y\s*APELLIDOS\s*PACIENTE|NOMBRE\s*Y\s*APELLIDOS|PACIENTE/i.test(lineaUpper)) {
+            if (/NOMBRE\s*Y\s*APELLIDOS/i.test(lineaUpper)) {
                 if (i + 1 < lineas.length) {
                     const nombreLinea = lineas[i + 1].toUpperCase();
-                    if (/^[A-Z\s]{10,60}$/.test(nombreLinea) && !/\d/.test(nombreLinea)) {
+                    if (/^[A-ZÑÁÉÍÓÚ\s]{10,60}$/.test(nombreLinea) && !/\d/.test(nombreLinea)) {
                         datos.nombres = nombreLinea.trim().replace(/\s+/g, ' ');
                         break;
                     }
