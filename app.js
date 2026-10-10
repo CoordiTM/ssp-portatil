@@ -425,6 +425,7 @@ window.eliminarSolicitud = async function(id) {
 // === NUEVO: filtrarEstado con 5 estados incluyendo programado_pendiente ===
 window.filtrarEstado = function(estado) {
     estadoFiltro = estado;
+    solicitudesVisibles = 50; // Reset de paginacion al cambiar de filtro
     document.querySelectorAll('.btn-filtro').forEach(btn => {
         if (btn) btn.classList.remove('active');
     });
@@ -1431,6 +1432,7 @@ const listaCards = document.getElementById('listaSolicitudes');
 let estadoFiltro = 'pendiente';
 let fechaFiltro = '';
 let solicitudesAnteriores = new Set();
+let solicitudesVisibles = 50; // Paginacion: carga inicial de 50 solicitudes
 
 // === NUEVO: crearCardSolicitud con clasificación Programado Pendiente ===
 function crearCardSolicitud(sol) {
@@ -1552,6 +1554,11 @@ function crearCardSolicitud(sol) {
 
 let unsubscribe = null;
 
+window.cargarMasSolicitudes = function() {
+    solicitudesVisibles += 50;
+    cargarSolicitudes();
+};
+
 // === NUEVO: cargarSolicitudes con 5 contadores y clasificación programado_pendiente ===
 function cargarSolicitudes() {
     if (unsubscribe) unsubscribe();
@@ -1601,6 +1608,7 @@ function cargarSolicitudes() {
                     data.nombrePaciente
                 );
             }
+            solicitudesAnteriores.add(docSnap.id); // Registrar TODAS las IDs (evita notificaciones repetidas de cards no renderizadas)
         });
 
         // === NUEVO: Actualizar 5 contadores en UI ===
@@ -1617,6 +1625,8 @@ function cargarSolicitudes() {
         if (countFinalizado) countFinalizado.textContent = counts.finalizado;
 
         // === Ahora aplicar filtros solo para renderizar cards ===
+        let rendered = 0;        // cards renderizadas (paginacion)
+        let totalFiltradas = 0;  // total que cumple el filtro actual
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const ahora = new Date();
@@ -1646,9 +1656,19 @@ function cargarSolicitudes() {
                 if (fechaDoc !== fechaFiltro) return;
             }
             
+            // === PAGINACION: contar todas y renderizar de 50 en 50 ===
+            totalFiltradas++;
+            if (rendered >= solicitudesVisibles) return;
+            rendered++;
+            
             html += crearCardSolicitud({ id: docSnap.id, data });
             solicitudesAnteriores.add(docSnap.id);
         });
+
+        // Boton "Cargar 50 mas"
+        if (totalFiltradas > solicitudesVisibles) {
+            html += '<div style="text-align:center;padding:20px 10px;margin:10px 0;"><button onclick="cargarMasSolicitudes()" class="btn-action" style="background:#1a5276;color:#fff;padding:12px 24px;font-size:14px;border:none;border-radius:8px;cursor:pointer;">⬇️ Cargar 50 mas (mostrando ' + rendered + ' de ' + totalFiltradas + ')</button></div>';
+        }
 
         if (listaCards) listaCards.innerHTML = html || '<p class="empty">No hay solicitudes</p>';
     }, (error) => {
@@ -1667,6 +1687,7 @@ if (listaCards) {
     if (inputFecha) {
         inputFecha.addEventListener('change', () => {
             fechaFiltro = inputFecha.value;
+            solicitudesVisibles = 50; // Reset de paginacion al cambiar de fecha
             cargarSolicitudes();
         });
     }
@@ -1815,6 +1836,7 @@ window.filtrarEstadoAdmin = function(estado, fecha) {
     if (fecha !== undefined) {
         fechaFiltroAdmin = fecha;
     }
+    solicitudesVisiblesAdmin = 50; // Reset de paginacion al cambiar de filtro
 
     // Actualizar botones activos
     document.querySelectorAll('.btn-filtro').forEach(btn => {
@@ -1832,6 +1854,12 @@ window.filtrarEstadoAdmin = function(estado, fecha) {
 let estadoFiltroAdmin = 'todos';
 let fechaFiltroAdmin = '';
 let unsubscribeAdmin = null;
+let solicitudesVisiblesAdmin = 50; // Paginacion admin: 50 por carga
+
+window.cargarMasSolicitudesAdmin = function() {
+    solicitudesVisiblesAdmin += 50;
+    cargarSolicitudesAdmin();
+};
 
 window.cargarSolicitudesAdmin = function() {
     const contenedor = document.getElementById('listaSolicitudesAdmin');
@@ -1879,6 +1907,8 @@ window.cargarSolicitudesAdmin = function() {
         }
 
         let html = '';
+        let renderedAdmin = 0;
+        let totalFiltradasAdmin = 0;
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const id = docSnap.id;
@@ -1891,6 +1921,11 @@ window.cargarSolicitudesAdmin = function() {
                 const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
                 if (fechaDoc !== fechaFiltroAdmin) return;
             }
+
+            // === PAGINACION ADMIN: contar todas y renderizar de 50 en 50 ===
+            totalFiltradasAdmin++;
+            if (renderedAdmin >= solicitudesVisiblesAdmin) return;
+            renderedAdmin++;
 
             const estadosLabels = {
                 'pendiente': '⏳ Pendiente',
@@ -1996,6 +2031,11 @@ window.cargarSolicitudesAdmin = function() {
             html += '</div>';
             html += '</div>';
         });
+        // Boton "Cargar 50 mas" (admin)
+        if (totalFiltradasAdmin > solicitudesVisiblesAdmin) {
+            html += '<div style="text-align:center;padding:20px 10px;margin:10px 0;"><button onclick="cargarMasSolicitudesAdmin()" class="btn-action" style="background:#1a5276;color:#fff;padding:12px 24px;font-size:14px;border:none;border-radius:8px;cursor:pointer;">⬇️ Cargar 50 mas (mostrando ' + renderedAdmin + ' de ' + totalFiltradasAdmin + ')</button></div>';
+        }
+
         contenedor.innerHTML = html || '<p class="empty">No hay solicitudes con este filtro</p>';
     }, (error) => {
         console.error('Error en admin:', error);
