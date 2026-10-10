@@ -77,10 +77,15 @@ function parsearDatosESSALUD(texto) {
         }
     }
     
-    // DNI
+    // DNI - Incluye patrón NEONATO para recién nacidos
     const matchDNI = textoUpper.match(/D\.?N\.?I\.?\s*(\d{8})/);
+    const matchNeonato = textoUpper.match(/NEONATO/);
+
     if (matchDNI) {
         datos.dni = matchDNI[1];
+    } else if (matchNeonato) {
+        // Paciente de Neonatología - no tiene DNI tradicional
+        datos.dni = 'NEONATO';
     } else {
         for (let i = 0; i < lineas.length; i++) {
             const lineaUpper = lineas[i].toUpperCase();
@@ -91,6 +96,11 @@ function parsearDatosESSALUD(texto) {
                     const matchSiguiente = lineas[i + 1].match(/^(\d{8})$/);
                     if (matchSiguiente) { datos.dni = matchSiguiente[1]; break; }
                 }
+            }
+            // Buscar NEONATO en líneas individuales
+            if (/NEONATO/i.test(lineaUpper)) {
+                datos.dni = 'NEONATO';
+                break;
             }
         }
     }
