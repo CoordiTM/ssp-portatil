@@ -1102,8 +1102,10 @@ if (formSolicitud) {
             const archivoUrl = await subirArchivoCloudinary(file);
 
             const dni = document.getElementById('dniPaciente').value.trim();
-            if (!dni || dni.length !== 8) {
-                alert('❌ El DNI debe tener 8 dígitos');
+            // Neonatos/recien nacidos no tienen DNI: el OCR puede traer la palabra NEONATO
+            const esNeonato = dni.toUpperCase() === 'NEONATO';
+            if (!dni || (!esNeonato && dni.length !== 8)) {
+                alert('❌ El DNI debe tener 8 dígitos (o NEONATO para recién nacidos)');
                 btn.disabled = false;
                 btn.textContent = '➕ Registrar Solicitud';
                 return;
