@@ -501,8 +501,11 @@ window.generarReporte = async function() {
                 fechaHoraDisplay = formatearFechaHora(d.horaProgramada) + ' (prog.)';
             }
 
+            var partesFH = fechaHoraDisplay.split(', ');
             solicitudes.push({
                 fechaHora: fechaHoraDisplay,
+                fecha: partesFH[0] || fechaHoraDisplay,
+                hora: partesFH[1] || '',
                 fechaCreacion: formatearFechaHora(d.timestamps?.creado),
                 numeroSolicitud: d.ocrData?.numeroSolicitud || '-',
                 numeroHistoria: d.ocrData?.numeroHistoria || '-',
@@ -542,9 +545,9 @@ window.generarReporte = async function() {
         : 0;
     const tiempoPromedio = formatearMinutosAHHMMSS(tiempoPromedioSeg);
 
-    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora Inicio</th><th>N° Solicitud</th><th>N° Historia</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Medico</th><th>Tiempo Efectivo</th><th>Notas</th></tr></thead><tbody>';
+    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha</th><th>Hora</th><th>N° Solicitud</th><th>N° Historia</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Medico</th><th>Tiempo Efectivo</th><th>Notas</th></tr></thead><tbody>';
     solicitudes.forEach(s => {
-        tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.numeroSolicitud + '</td><td>' + s.numeroHistoria + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + limpiarNombreTecnologo(s.tecnologo) + '</td><td>' + s.tiempoAtencion + (s.infoPausas || '') + '</td><td>' + s.notas + '</td></tr>';
+        tablaHTML += '<tr><td>' + s.fecha + '</td><td>' + s.hora + '</td><td>' + s.numeroSolicitud + '</td><td>' + s.numeroHistoria + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + limpiarNombreTecnologo(s.tecnologo) + '</td><td>' + s.tiempoAtencion + (s.infoPausas || '') + '</td><td>' + s.notas + '</td></tr>';
     });
     tablaHTML += '</tbody></table>';
 
@@ -559,7 +562,8 @@ window.exportarExcel = function() {
     }
     const wb = XLSX.utils.book_new();
     const data = window.datosReporte.map(s => ({
-        'Fecha/Hora': s.fechaHora,
+        'Fecha': s.fecha,
+        'Hora': s.hora,
         'N° Solicitud': s.numeroSolicitud,
         'N° Historia': s.numeroHistoria,
         'DNI': s.dni,
@@ -616,9 +620,9 @@ window.exportarPDF = function() {
     pdf.setFontSize(9);
     pdf.text('Total: ' + window.datosReporte.length + ' | Atendidas: ' + atendidos + ' | No atendidas: ' + rechazados + ' | Pendientes: ' + pendientes, 14, 34);
 
-    const headers = ['Fecha/Hora', 'N° Sol.', 'N° HC', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Solicita', 'Estado', 'Tecnologo', 'Tiempo'];
+    const headers = ['Fecha', 'Hora', 'N° Sol.', 'N° HC', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Solicita', 'Estado', 'Tecnologo', 'Tiempo'];
     const data = window.datosReporte.map(s => [
-        s.fechaHora, s.numeroSolicitud, s.numeroHistoria, s.dni, s.paciente, s.servicio, s.numeroCama, s.solicitadoPor, s.estado, s.tecnologo, s.tiempoAtencion
+        s.fecha, s.hora, s.numeroSolicitud, s.numeroHistoria, s.dni, s.paciente, s.servicio, s.numeroCama, s.solicitadoPor, s.estado, s.tecnologo, s.tiempoAtencion
     ]);
 
     pdf.autoTable({
