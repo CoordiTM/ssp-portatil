@@ -504,6 +504,8 @@ window.generarReporte = async function() {
             solicitudes.push({
                 fechaHora: fechaHoraDisplay,
                 fechaCreacion: formatearFechaHora(d.timestamps?.creado),
+                numeroSolicitud: d.ocrData?.numeroSolicitud || '-',
+                numeroHistoria: d.ocrData?.numeroHistoria || '-',
                 dni: d.dniPaciente,
                 paciente: d.nombrePaciente,
                 servicio: d.servicio || '-',
@@ -517,7 +519,12 @@ window.generarReporte = async function() {
                 notas: d.notas || '',
                 historialNotas: d.historialNotas || [],
                 motivoRechazo: d.motivoRechazo || '',
-                esProgramado: d.esProgramado || false
+                esProgramado: d.esProgramado || false,
+                horaProgramada: (d.esProgramado && d.horaProgramada) ? formatearFechaHora(d.horaProgramada) : '',
+                enCamino: formatearFechaHora(d.timestamps?.enCamino),
+                finalizado: formatearFechaHora(d.timestamps?.finalizado),
+                rechazado: formatearFechaHora(d.timestamps?.rechazado),
+                notasTecnologos: (d.historialNotas || []).map(function(n) { return n.fecha + ' - ' + n.tecnologo + ': ' + n.texto; }).join(' | ')
             });
 
             if (d.estado === 'finalizado') {
@@ -535,9 +542,9 @@ window.generarReporte = async function() {
         : 0;
     const tiempoPromedio = formatearMinutosAHHMMSS(tiempoPromedioSeg);
 
-    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora Inicio</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Medico</th><th>Tiempo Efectivo</th><th>Notas</th></tr></thead><tbody>';
+    let tablaHTML = '<table class="tabla-reporte" id="tablaReporte"><thead><tr><th>Fecha/Hora Inicio</th><th>N° Solicitud</th><th>N° Historia</th><th>DNI</th><th>Paciente</th><th>Servicio</th><th>Cama</th><th>Solicita</th><th>Estado</th><th>Tecnologo Medico</th><th>Tiempo Efectivo</th><th>Notas</th></tr></thead><tbody>';
     solicitudes.forEach(s => {
-        tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + limpiarNombreTecnologo(s.tecnologo) + '</td><td>' + s.tiempoAtencion + (s.infoPausas || '') + '</td><td>' + s.notas + '</td></tr>';
+        tablaHTML += '<tr><td>' + s.fechaHora + '</td><td>' + s.numeroSolicitud + '</td><td>' + s.numeroHistoria + '</td><td>' + s.dni + '</td><td>' + s.paciente + '</td><td>' + s.servicio + '</td><td>' + s.numeroCama + '</td><td>' + s.solicitadoPor + '</td><td>' + s.estado + '</td><td>' + limpiarNombreTecnologo(s.tecnologo) + '</td><td>' + s.tiempoAtencion + (s.infoPausas || '') + '</td><td>' + s.notas + '</td></tr>';
     });
     tablaHTML += '</tbody></table>';
 
@@ -553,6 +560,8 @@ window.exportarExcel = function() {
     const wb = XLSX.utils.book_new();
     const data = window.datosReporte.map(s => ({
         'Fecha/Hora': s.fechaHora,
+        'N° Solicitud': s.numeroSolicitud,
+        'N° Historia': s.numeroHistoria,
         'DNI': s.dni,
         'Paciente': s.paciente,
         'Servicio': s.servicio,
@@ -560,8 +569,18 @@ window.exportarExcel = function() {
         'Solicita': s.solicitadoPor,
         'Estado': s.estado,
         'Tecnologo Medico': s.tecnologo,
-        'Tiempo Atencion': s.tiempoAtencion,
-        'Notas': s.notas
+        'Tiempo Efectivo': s.tiempoAtencion,
+        'Tiempo Total': s.tiempoTotal,
+        'Pausas (espera)': (s.infoPausas || '').replace(' (+', '').replace(' espera)', ''),
+        'Notas': s.notas,
+        'Notas Tecnologos': s.notasTecnologos,
+        'Motivo Rechazo': s.motivoRechazo,
+        'Programado': s.esProgramado ? 'Si' : 'No',
+        'Hora Programada': s.horaProgramada,
+        'Fecha Creacion': s.fechaCreacion,
+        'En Camino': s.enCamino,
+        'Finalizado': s.finalizado,
+        'Rechazado': s.rechazado
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     XLSX.utils.book_append_sheet(wb, ws, 'Reporte');
@@ -597,9 +616,9 @@ window.exportarPDF = function() {
     pdf.setFontSize(9);
     pdf.text('Total: ' + window.datosReporte.length + ' | Atendidas: ' + atendidos + ' | No atendidas: ' + rechazados + ' | Pendientes: ' + pendientes, 14, 34);
 
-    const headers = ['Fecha/Hora', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Solicita', 'Estado', 'Tecnologo Medico', 'Tiempo'];
+    const headers = ['Fecha/Hora', 'N° Sol.', 'N° HC', 'DNI', 'Paciente', 'Servicio', 'Cama', 'Solicita', 'Estado', 'Tecnologo', 'Tiempo'];
     const data = window.datosReporte.map(s => [
-        s.fechaHora, s.dni, s.paciente, s.servicio, s.numeroCama, s.solicitadoPor, s.estado, s.tecnologo, s.tiempoAtencion
+        s.fechaHora, s.numeroSolicitud, s.numeroHistoria, s.dni, s.paciente, s.servicio, s.numeroCama, s.solicitadoPor, s.estado, s.tecnologo, s.tiempoAtencion
     ]);
 
     pdf.autoTable({
@@ -1529,7 +1548,7 @@ function crearCardSolicitud(sol) {
     
     let adminBotones = '';
     if (localStorage.getItem('rol') === 'admin') {
-        adminBotones = '<div style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;"><button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button><button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button></div>';
+        adminBotones = '<div style="margin-top: 10px; border-top: 1px dashed #ccc; padding-top: 10px;"><button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button><button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button><button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button></div>';
     }
     
     let servicioHTML = '';
@@ -1929,109 +1948,8 @@ window.cargarSolicitudesAdmin = function() {
             if (renderedAdmin >= solicitudesVisiblesAdmin) return;
             renderedAdmin++;
 
-            const estadosLabels = {
-                'pendiente': '⏳ Pendiente',
-                'en_camino': '🚶 En camino',
-                'rechazado': '❌ No atendido',
-                'finalizado': '✅ Atendido'
-            };
-
-            // === Calcular tiempo de atención para finalizados ===
-            let tiempoInfo = '';
-            if (data.estado === 'finalizado' && data.timestamps?.creado && data.timestamps?.finalizado) {
-                const tiempos = calcularTiempoEfectivo(data);
-                tiempoInfo = '<div style="background:#e8f5e9;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;">';
-                tiempoInfo += '<strong style="color:#2e7d32;">⏱️ Tiempo total: ' + formatearTiempoHHMMSS(tiempos.efectivo) + '</strong>';
-                if (tiempos.pausasTiempo > 0) {
-                    tiempoInfo += ' (+' + formatearTiempoHHMMSS(tiempos.pausasTiempo) + ' en pausas)';
-                }
-                tiempoInfo += '</div>';
-            }
-
-            // === Trazabilidad de estados con timestamps ===
-            let trazabilidadHTML = '';
-            let estadosLines = [];
-            if (data.timestamps?.creado) {
-                estadosLines.push('📋 Registrado: ' + formatearFechaHora(data.timestamps.creado));
-            }
-            if (data.timestamps?.enCamino) {
-                estadosLines.push('🚶 En camino: ' + formatearFechaHora(data.timestamps.enCamino));
-            }
-            if (data.pausas && data.pausas.length > 0) {
-                data.pausas.forEach((p, idx) => {
-                    const inicio = p.inicio ? formatearFechaHora(p.inicio) : '-';
-                    const fin = p.reinicioReal ? formatearFechaHora(p.reinicioReal) : (p.reinicioProgramado ? formatearFechaHora(p.reinicioProgramado) + ' (prog)' : '...');
-                    estadosLines.push('⏸️ Pausa ' + (idx + 1) + ': ' + inicio + ' → ' + fin);
-                });
-            }
-            if (data.timestamps?.finalizado) {
-                estadosLines.push('✅ Finalizado: ' + formatearFechaHora(data.timestamps.finalizado));
-            }
-            if (data.timestamps?.rechazado) {
-                estadosLines.push('❌ Rechazado: ' + formatearFechaHora(data.timestamps.rechazado));
-            }
-            if (estadosLines.length > 0) {
-                trazabilidadHTML = '<div style="background:#f0f7ff;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;line-height:1.6;">';
-                trazabilidadHTML += '<strong style="color:#1a5276;">📊 Trazabilidad:</strong><br>';
-                trazabilidadHTML += estadosLines.join('<br>');
-                trazabilidadHTML += '</div>';
-            }
-
-            // === Historial de notas de tecnólogos ===
-            let notasHTML = '';
-            if (data.historialNotas && data.historialNotas.length > 0) {
-                notasHTML = '<div style="background:#fff8f0;padding:8px 10px;border-radius:6px;margin:8px 0;font-size:12px;">';
-                notasHTML += '<strong style="color:#e65100;">📝 Notas de Tecnólogos (' + data.historialNotas.length + '):</strong><br>';
-                data.historialNotas.forEach((nota, idx) => {
-                    notasHTML += '<div style="border-left:2px solid #ff9800;padding-left:8px;margin:4px 0;">';
-                    notasHTML += '<span style="color:#666;font-size:11px;">📅 ' + nota.fecha + ' | 👤 ' + nota.tecnologo + '</span><br>';
-                    notasHTML += '<span style="color:#333;">' + nota.texto + '</span>';
-                    notasHTML += '</div>';
-                });
-                notasHTML += '</div>';
-            }
-
-            const fecha = data.timestamps?.creado?.toDate()?.toLocaleString('es-PE', {
-                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false
-            }) || '-';
-
-            html += '<div class="solicitud-card-v2" style="border-left: 4px solid #1a5276;">';
-            html += '<div class="card-header">';
-            html += '<div class="card-titulo">';
-            html += '<strong>' + (data.nombrePaciente || '-') + '</strong>';
-            html += '<span class="dni">DNI: ' + (data.dniPaciente || '-') + '</span>';
-            if (data.servicio) {
-                html += '<span class="servicio-badge">🏥 ' + data.servicio + '</span>';
-            }
-            if (data.numeroCama) {
-                html += '<span class="servicio-badge">🛏️ ' + data.numeroCama + '</span>';
-            }
-            html += '</div>';
-            html += '<span class="estado-badge ' + data.estado + '">' + estadosLabels[data.estado] + '</span>';
-            html += '</div>';
-            html += '<div class="card-info">';
-            html += '<div class="info-row"><span>🕐 ' + fecha + '</span></div>';
-            html += '<div class="info-row"><span>🙋 ' + data.solicitadoPor + '</span><span>🔬 ' + (data.tecnologoAsignado || 'Sin asignar') + '</span></div>';
-            if (data.motivoRechazo) {
-                html += '<div class="info-row" style="color: #d32f2f;"><strong>❌ Motivo:</strong> ' + data.motivoRechazo + '</div>';
-            }
-            html += '</div>';
-
-            html += tiempoInfo;
-            html += trazabilidadHTML;
-            html += notasHTML;
-
-            if (data.archivoSolicitud) {
-                const esPDF = data.esPDF ? '📄 PDF' : '📷 Foto';
-                html += '<div class="card-foto"><a href="' + data.archivoSolicitud + '" target="_blank">' + esPDF + ' - Ver solicitud</a></div>';
-            }
-            html += '<div class="admin-actions">';
-            html += '<button onclick="abrirModalEditarSolicitud(\'' + id + '\')" class="btn-action" style="background: #fff3e0; color: #e65100;">✏️ EDITAR</button>';
-            html += '<button onclick="abrirKanteron(\'' + (data.dniPaciente || '') + '\')" class="btn-action" style="background: #e8f5e9; color: #2e7d32;">🔍 Kanteron PACS</button>';
-            html += '<button onclick="revertirEstadoAdmin(\'' + id + '\')" class="btn-action" style="background: #e3f2fd; color: #1976d2;">↩️ REVERTIR A PENDIENTE</button>';
-            html += '<button onclick="eliminarSolicitud(\'' + id + '\')" class="btn-action" style="background: #ffebee; color: #d32f2f;">🗑️ ELIMINAR</button>';
-            html += '</div>';
-            html += '</div>';
+            // Card IDENTICA al dashboard de usuarios (crearCardSolicitud ya incluye botones de admin)
+            html += crearCardSolicitud({ id: docSnap.id, data });
         });
         // Boton "Cargar 50 mas" (admin)
         if (totalFiltradasAdmin > solicitudesVisiblesAdmin) {
