@@ -320,6 +320,25 @@ function formatearFechaHora(timestamp) {
     });
 }
 
+// Fecha/hora de referencia para UBICAR la solicitud en el tiempo:
+// - Finalizadas: cuando se ATENDIO (no cuando se registro)
+// - Rechazadas: cuando se rechazaron
+// - Programadas sin atender: hora programada
+// - Resto: fecha de creacion
+function fechaReferencia(data) {
+    if (data.estado === 'finalizado' && data.timestamps?.finalizado) {
+        return data.timestamps.finalizado.toDate ? data.timestamps.finalizado.toDate() : new Date(data.timestamps.finalizado);
+    }
+    if (data.estado === 'rechazado' && data.timestamps?.rechazado) {
+        return data.timestamps.rechazado.toDate ? data.timestamps.rechazado.toDate() : new Date(data.timestamps.rechazado);
+    }
+    if (data.esProgramado && data.horaProgramada) {
+        return data.horaProgramada.toDate ? data.horaProgramada.toDate() : new Date(data.horaProgramada);
+    }
+    if (data.timestamps?.creado?.toDate) return data.timestamps.creado.toDate();
+    return null;
+}
+
 // ==================== FUNCIONES GLOBALES ====================
 
 window.cambiarEstado = async function(id, nuevoEstado) {
@@ -466,9 +485,10 @@ window.generarReporte = async function() {
 
     snapshot.forEach((docSnap) => {
         const d = docSnap.data();
-        const fechaCreado = d.timestamps?.creado?.toDate();
+        // Se ubica en el dia/hora en que se ATENDIO (no en el de registro)
+        const fechaRef = fechaReferencia(d);
 
-        if (fechaCreado && fechaCreado >= fechaDesde && fechaCreado <= fechaHasta) {
+        if (fechaRef && fechaRef >= fechaDesde && fechaRef <= fechaHasta) {
             if (tipoReporte === 'individual' && tecnologoFiltro && d.tecnologoAsignado !== tecnologoFiltro) return;
             total++;
 
@@ -496,9 +516,14 @@ window.generarReporte = async function() {
                 tiemposAtencion.push(diffMin);
             }
 
-            let fechaHoraDisplay = formatearFechaHora(d.timestamps?.creado);
-            if (esProgramada) {
+            let fechaHoraDisplay;
+            if (d.estado === 'finalizado' && d.timestamps?.finalizado) {
+                // Atendidas: se muestra el dia/hora en que se realizo el estudio
+                fechaHoraDisplay = formatearFechaHora(d.timestamps.finalizado);
+            } else if (esProgramada) {
                 fechaHoraDisplay = formatearFechaHora(d.horaProgramada) + ' (prog.)';
+            } else {
+                fechaHoraDisplay = formatearFechaHora(d.timestamps?.creado);
             }
 
             var partesFH = fechaHoraDisplay.split(', ');
@@ -527,7 +552,8 @@ window.generarReporte = async function() {
                 enCamino: formatearFechaHora(d.timestamps?.enCamino),
                 finalizado: formatearFechaHora(d.timestamps?.finalizado),
                 rechazado: formatearFechaHora(d.timestamps?.rechazado),
-                notasTecnologos: (d.historialNotas || []).map(function(n) { return n.fecha + ' - ' + n.tecnologo + ': ' + n.texto; }).join(' | ')
+                notasTecnologos: (d.historialNotas || []).map(function(n) { return n.fecha + ' - ' + n.tecnologo + ': ' + n.texto; }).join(' | '),
+                fechaRef: fechaRef.getTime()
             });
 
             if (d.estado === 'finalizado') {
@@ -539,6 +565,9 @@ window.generarReporte = async function() {
             }
         }
     });
+
+    // Ordenar por fecha/hora de atencion: las atendidas se ubican el dia que se realizaron (agrupadas por dia)
+    solicitudes.sort(function(a, b) { return b.fechaRef - a.fechaRef; });
 
     const tiempoPromedioSeg = tiemposAtencion.length > 0 
         ? (tiemposAtencion.reduce((a,b) => a+b, 0) / tiemposAtencion.length)
@@ -1649,14 +1678,13 @@ function cargarSolicitudes() {
         if (countRechazado) countRechazado.textContent = counts.rechazado;
         if (countFinalizado) countFinalizado.textContent = counts.finalizado;
 
-        // === Ahora aplicar filtros solo para renderizar cards ===
-        let rendered = 0;        // cards renderizadas (paginacion)
-        let totalFiltradas = 0;  // total que cumple el filtro actual
+        // === Ahora aplicar filtros SOLO para recolectar cards ===
+        const filtradas = [];
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
             const ahora = new Date();
-            
-            // === NUEVO: Determinar estado clasificado para filtro ===
+
+            // === Determinar estado clasificado para filtro ===
             let estadoClasificado = data.estado;
             if (data.estado === 'pendiente') {
                 if (data.esProgramado && data.horaProgramada) {
@@ -1671,23 +1699,33 @@ function cargarSolicitudes() {
                     estadoClasificado = 'pendiente';
                 }
             }
-            
+
             // Filtro de estado
             if (estadoFiltro !== 'todos' && estadoClasificado !== estadoFiltro) return;
-            
+
             // Filtro de fecha
             if (fechaFiltro && data.timestamps?.creado) {
                 const fechaDoc = data.timestamps.creado.toDate().toISOString().split('T')[0];
                 if (fechaDoc !== fechaFiltro) return;
             }
-            
-            // === PAGINACION: contar todas y renderizar de 50 en 50 ===
-            totalFiltradas++;
-            if (rendered >= solicitudesVisibles) return;
+
+            filtradas.push({ id: docSnap.id, data });
+        });
+
+        // Ordenar: atendidas/rechazadas se ubican el dia/hora en que se atendieron (quedan agrupadas por dia)
+        filtradas.sort(function(a, b) {
+            const fa = fechaReferencia(a.data);
+            const fb = fechaReferencia(b.data);
+            return (fb ? fb.getTime() : 0) - (fa ? fa.getTime() : 0);
+        });
+
+        // Paginacion: renderizar solo las visibles (50 en 50)
+        const totalFiltradas = filtradas.length;
+        const visibles = filtradas.slice(0, solicitudesVisibles);
+        let rendered = 0;
+        visibles.forEach(function(sol) {
+            html += crearCardSolicitud({ id: sol.id, data: sol.data });
             rendered++;
-            
-            html += crearCardSolicitud({ id: docSnap.id, data });
-            solicitudesAnteriores.add(docSnap.id);
         });
 
         // Boton "Cargar 50 mas"
@@ -1931,12 +1969,10 @@ window.cargarSolicitudesAdmin = function() {
             return;
         }
 
-        let html = '';
-        let renderedAdmin = 0;
-        let totalFiltradasAdmin = 0;
+        // Primero: filtrar TODAS las solicitudes
+        const filtradasAdmin = [];
         snapshot.forEach((docSnap) => {
             const data = docSnap.data();
-            const id = docSnap.id;
 
             // Filtro por estado
             if (estadoFiltroAdmin !== 'todos' && data.estado !== estadoFiltroAdmin) return;
@@ -1947,14 +1983,25 @@ window.cargarSolicitudesAdmin = function() {
                 if (fechaDoc !== fechaFiltroAdmin) return;
             }
 
-            // === PAGINACION ADMIN: contar todas y renderizar de 50 en 50 ===
-            totalFiltradasAdmin++;
-            if (renderedAdmin >= solicitudesVisiblesAdmin) return;
-            renderedAdmin++;
-
-            // Card IDENTICA al dashboard de usuarios (crearCardSolicitud ya incluye botones de admin)
-            html += crearCardSolicitud({ id: docSnap.id, data });
+            filtradasAdmin.push({ id: docSnap.id, data });
         });
+
+        // Ordenar: atendidas/rechazadas se ubican el dia/hora en que se atendieron (quedan agrupadas por dia)
+        filtradasAdmin.sort(function(a, b) {
+            const fa = fechaReferencia(a.data);
+            const fb = fechaReferencia(b.data);
+            return (fb ? fb.getTime() : 0) - (fa ? fa.getTime() : 0);
+        });
+
+        // Segundo: paginar y renderizar de 50 en 50 (card identica al dashboard)
+        let html = '';
+        const totalFiltradasAdmin = filtradasAdmin.length;
+        const visiblesAdmin = filtradasAdmin.slice(0, solicitudesVisiblesAdmin);
+        visiblesAdmin.forEach(function(sol) {
+            html += crearCardSolicitud({ id: sol.id, data: sol.data });
+        });
+        const renderedAdmin = visiblesAdmin.length;
+        
         // Boton "Cargar 50 mas" (admin)
         if (totalFiltradasAdmin > solicitudesVisiblesAdmin) {
             html += '<div style="text-align:center;padding:20px 10px;margin:10px 0;"><button onclick="cargarMasSolicitudesAdmin()" class="btn-action" style="background:#1a5276;color:#fff;padding:12px 24px;font-size:14px;border:none;border-radius:8px;cursor:pointer;">⬇️ Cargar 50 mas (mostrando ' + renderedAdmin + ' de ' + totalFiltradasAdmin + ')</button></div>';
